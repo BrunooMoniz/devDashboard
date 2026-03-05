@@ -72,24 +72,28 @@ interface FlowData {
 // Reviewer x:150  y:740  QA x:500  y:740  DevOps x:850  y:740
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
-  //  Organograma em árvore — sem sobreposição de setas
+  //  Layout em árvore — nós com 220px largura, gap mínimo 60px → passo horizontal 280px
   //
-  //              👤 Moniz
-  //              🧠 Atlas
-  //         /              \
-  //   📋 Iris           🏗 Orion
-  //   /      \           /    \
-  // 🎨Pixel  ⚙️Forge   🛡Argus  🔍Lyra   🚀Vega
+  //  👤 Moniz (esquerda, topo)
+  //         ↘
+  //           🧠 Atlas (centro)
+  //         ↙          ↘
+  //   📋 Iris          🏗 Orion
+  //   ↙     ↘           ↙      ↘
+  // 🎨Pixel ⚙️Forge   🛡Argus  🚀Vega
+  //             ↘    ↙
+  //            🔍 Lyra
   //
-  moniz:     { x: 700, y:    0 }, // topo
-  main:      { x: 700, y:  200 }, // Atlas abaixo de Moniz
-  pm:        { x: 300, y:  420 }, // Iris — lado esquerdo
-  architect: { x: 1100, y: 420 }, // Orion — lado direito
-  frontend:  { x: 100, y:  640 }, // Pixel — baixo esquerdo de Iris
-  backend:   { x: 500, y:  640 }, // Forge — baixo direito de Iris
-  reviewer:  { x: 900, y:  640 }, // Argus — baixo esquerdo de Orion
-  qa:        { x: 700, y:  860 }, // Lyra — centro baixo
-  devops:    { x: 1100, y: 640 }, // Vega — baixo direito de Orion
+  // Largura do nó: 220px. Espaço horizontal mínimo entre centros: 280px.
+  moniz:     { x:  80, y:   0 }, // Moniz — topo esquerda
+  main:      { x: 640, y: 100 }, // Atlas — centro
+  pm:        { x: 200, y: 320 }, // Iris — esquerda
+  architect: { x: 1080, y: 320 }, // Orion — direita
+  frontend:  { x:  20, y: 540 }, // Pixel — extremo esquerdo (filho de Iris)
+  backend:   { x: 380, y: 540 }, // Forge — centro-esquerdo (filho de Iris)
+  reviewer:  { x: 760, y: 540 }, // Argus — centro-direito (filho de Orion)
+  devops:    { x: 1120, y: 540 }, // Vega — extremo direito (filho de Orion) [280px de Argus: 760+360=ok]
+  qa:        { x: 560, y: 740 }, // Lyra — centro baixo (QA valida tudo)
 };
 
 function getPosition(id: string, index: number): { x: number; y: number } {
