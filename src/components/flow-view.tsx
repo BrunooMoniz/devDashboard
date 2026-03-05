@@ -15,9 +15,8 @@ import {
   MarkerType,
   BaseEdge,
   EdgeLabelRenderer,
-  getStraightPath,
-  type EdgeProps,
   getBezierPath,
+  type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -42,7 +41,6 @@ interface FlowEdgeData {
   type?: "active" | "recent" | "planned";
   priority?: "low" | "medium" | "high" | "critical";
   completedAt?: string;
-  // legacy support
   status?: "pending" | "in_progress" | "done" | "blocked";
 }
 
@@ -65,127 +63,173 @@ interface FlowData {
   stats?: FlowStats;
 }
 
-// ─── Layout ───────────────────────────────────────────────────────────────────
+// ─── Layout — vertical top-down hierárquico ───────────────────────────────────
+//
+//          Atlas         x:500  y:0
+//          Iris (PM)     x:500  y:200
+//          Orion         x:500  y:380
+//   Pixel  x:250  y:560      Forge  x:750  y:560
+// Reviewer x:150  y:740  QA x:500  y:740  DevOps x:850  y:740
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
-  main:      { x: 600, y:  50 },
-  pm:        { x:  50, y: 280 },
-  architect: { x: 220, y: 280 },
-  frontend:  { x: 390, y: 280 },
-  backend:   { x: 560, y: 280 },
-  devops:    { x: 730, y: 280 },
-  qa:        { x: 900, y: 280 },
-  reviewer:  { x: 1070, y: 280 },
+  main:      { x: 500, y:   0 },  // Atlas
+  pm:        { x: 500, y: 200 },  // Iris
+  architect: { x: 500, y: 380 },  // Orion
+  frontend:  { x: 250, y: 560 },  // Pixel
+  backend:   { x: 750, y: 560 },  // Forge
+  reviewer:  { x: 150, y: 740 },
+  qa:        { x: 500, y: 740 },
+  devops:    { x: 850, y: 740 },
 };
 
-function getPosition(id: string, index: number, total: number) {
+function getPosition(id: string, index: number): { x: number; y: number } {
   if (AGENT_POSITIONS[id]) return AGENT_POSITIONS[id];
-  // Fallback: place unknown agents in the bottom row
-  return {
-    x: 50 + index * 170,
-    y: 280,
-  };
+  return { x: 100 + index * 220, y: 900 };
 }
 
 // ─── Edge type resolution ─────────────────────────────────────────────────────
 
 function resolveEdgeType(e: FlowEdgeData): "active" | "recent" | "planned" {
   if (e.type === "active" || e.type === "recent" || e.type === "planned") return e.type;
-  // Legacy mapping
   if (e.status === "in_progress") return "active";
   if (e.status === "done") return "recent";
   return "planned";
 }
 
-// ─── Custom Node ──────────────────────────────────────────────────────────────
+// ─── Edge label — só mostra se for 1–2 palavras ───────────────────────────────
 
-interface AgentNodeData extends FlowAgent {
-  activity?: AgentActivity;
+function shortLabel(label: string, priority?: string): string | undefined {
+  if (priority === "critical") return "🔴 critical";
+  if (!label) return undefined;
+  const words = label.trim().split(/\s+/);
+  if (words.length <= 2) return label;
+  return undefined;
 }
 
-const modelLabel = (model?: string): string => {
+// ─── Model pill ───────────────────────────────────────────────────────────────
+
+function modelLabel(model?: string): string {
   if (!model) return "";
   if (model.includes("haiku")) return "⚡ Haiku";
   if (model.includes("sonnet")) return "🧠 Sonnet";
   if (model.includes("opus")) return "💎 Opus";
   return model.split("-")[0];
-};
+}
 
-const activityColor: Record<string, string> = {
-  info:  "text-blue-400",
-  warn:  "text-yellow-400",
-  error: "text-red-400",
-};
+// ─── Custom Node ──────────────────────────────────────────────────────────────
+
+interface AgentNodeData extends FlowAgent {
+  activity?: AgentActivity | null;
+}
 
 function AgentNode({ data }: NodeProps) {
   const d = data as unknown as AgentNodeData;
   const isWorking = d.status === "working";
   const isError   = d.status === "error";
+  const isOffline = d.status === "offline";
 
-  const ringClass =
-    isWorking ? "ring-2 ring-emerald-400/70 ring-offset-1 ring-offset-slate-900" :
-    isError   ? "ring-2 ring-red-400/70 ring-offset-1 ring-offset-slate-900" :
-    "";
+  // Status dot colour
+  const dotClass = isWorking
+    ? "bg-emerald-500 animate-pulse"
+    : isError
+    ? "bg-red-500"
+    : isOffline
+    ? "bg-slate-400"
+    : "bg-slate-400";
 
-  const statusDot =
-    isWorking ? "bg-emerald-400 animate-pulse" :
-    isError   ? "bg-red-400" :
-    d.status === "offline" ? "bg-slate-600" :
-    "bg-slate-400";
+  const statusText = isWorking ? "Working" : isError ? "Error" : isOffline ? "Offline" : "Idle";
 
-  const activity = d.activity;
-  const logColor = activity ? (activityColor[activity.level] ?? "text-slate-400") : "text-slate-400";
+  // Border accent when working
+  const borderStyle = isWorking
+    ? "border-emerald-300"
+    : isError
+    ? "border-red-300"
+    : "border-slate-300";
 
   return (
     <div
-      className={`
-        relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl
-        bg-slate-800 dark:bg-slate-800 border border-slate-700
-        shadow-lg min-w-[130px] max-w-[160px]
-        ${ringClass}
-        transition-all duration-300
-      `}
+      style={{
+        width: 200,
+        minHeight: 120,
+        background: "#f8fafc",
+        borderRadius: 12,
+        border: `1.5px solid`,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.08)",
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        color: "#1e293b",
+        position: "relative",
+      }}
+      className={borderStyle}
     >
-      {/* Handles — all four sides */}
-      <Handle type="target" position={Position.Top}    style={{ opacity: 0 }} />
-      <Handle type="target" position={Position.Left}   style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Right}  style={{ opacity: 0 }} />
+      {/* Handles — top (target) and bottom (source) */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: "#94a3b8", width: 8, height: 8, border: "2px solid #f8fafc" }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ background: "#94a3b8", width: 8, height: 8, border: "2px solid #f8fafc" }}
+      />
 
-      {/* Emoji */}
-      <span className="text-[2rem] leading-none select-none">{d.emoji ?? "🤖"}</span>
-
-      {/* Name + Role */}
-      <div className="flex flex-col items-center gap-0.5 text-center">
-        <span className="text-sm font-semibold text-white leading-tight">{d.label}</span>
-        <span className="text-[10px] text-slate-400 leading-tight">{d.role}</span>
+      {/* Header: emoji + name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 28, lineHeight: 1, userSelect: "none" }}>{d.emoji ?? "🤖"}</span>
+        <span
+          style={{
+            fontSize: 15,
+            fontWeight: 700,
+            color: "#1e293b",
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: 130,
+          }}
+        >
+          {d.label}
+        </span>
       </div>
+
+      {/* Role */}
+      <span style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.2 }}>{d.role}</span>
 
       {/* Status badge */}
-      <div className="flex items-center gap-1.5 mt-0.5">
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot}`} />
-        <span className="text-[10px] capitalize text-slate-300">{d.status}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+        <span
+          className={dotClass}
+          style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, display: "inline-block" }}
+        />
+        <span style={{ fontSize: 11, color: "#475569" }}>{statusText}</span>
       </div>
-
-      {/* Model indicator */}
-      {d.model && (
-        <span className="text-[9px] text-slate-500 leading-none">
-          {modelLabel(d.model)}
-        </span>
-      )}
 
       {/* Current task */}
       {d.currentTask && (
-        <div className="w-full mt-1 px-1.5 py-1 bg-slate-700/60 rounded text-[9px] text-slate-300 truncate border border-slate-600/50">
-          {d.currentTask}
+        <div
+          style={{
+            fontSize: 11,
+            color: "#64748b",
+            lineHeight: 1.3,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            marginTop: 1,
+          }}
+          title={d.currentTask}
+        >
+          📌 {d.currentTask}
         </div>
       )}
 
-      {/* Last activity log */}
-      {activity && (
-        <div className={`w-full mt-0.5 text-[9px] leading-tight ${logColor} line-clamp-2 text-center`}>
-          {activity.message}
-        </div>
+      {/* Model */}
+      {d.model && (
+        <span style={{ fontSize: 10, color: "#94a3b8", marginTop: 1 }}>
+          {modelLabel(d.model)}
+        </span>
       )}
     </div>
   );
@@ -194,8 +238,10 @@ function AgentNode({ data }: NodeProps) {
 // ─── Custom Edges ─────────────────────────────────────────────────────────────
 
 function ActiveEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd } = props;
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd, data } = props;
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const eData = data as unknown as FlowEdgeData | undefined;
+  const displayLabel = shortLabel(label as string ?? "", eData?.priority);
 
   return (
     <>
@@ -203,18 +249,29 @@ function ActiveEdge(props: EdgeProps) {
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: "url(#activeGradient)",
-          strokeWidth: 3,
-          filter: "drop-shadow(0 0 4px rgba(99,102,241,0.6))",
+          stroke: "#6366f1",
+          strokeWidth: 4,
+          filter: "drop-shadow(0 0 4px rgba(99,102,241,0.5))",
         }}
       />
-      {label && (
+      {displayLabel && (
         <EdgeLabelRenderer>
           <div
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
-            className="absolute pointer-events-none px-1.5 py-0.5 bg-indigo-950/90 border border-indigo-600/60 rounded text-[9px] text-indigo-200 font-medium max-w-[120px] truncate nodrag nopan"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              position: "absolute",
+              pointerEvents: "none",
+              padding: "2px 6px",
+              borderRadius: 4,
+              fontSize: 10,
+              fontWeight: 600,
+              background: "rgba(238,240,255,0.95)",
+              color: "#4338ca",
+              border: "1px solid #a5b4fc",
+            }}
+            className="nodrag nopan"
           >
-            {label as string}
+            {displayLabel}
           </div>
         </EdgeLabelRenderer>
       )}
@@ -223,61 +280,37 @@ function ActiveEdge(props: EdgeProps) {
 }
 
 function RecentEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd } = props;
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd } = props;
+  const [edgePath] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
   return (
-    <>
-      <BaseEdge
-        path={edgePath}
-        markerEnd={markerEnd}
-        style={{
-          stroke: "#22c55e",
-          strokeWidth: 1.5,
-          strokeDasharray: "5,3",
-        }}
-      />
-      {label && (
-        <EdgeLabelRenderer>
-          <div
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}
-            className="absolute pointer-events-none px-1.5 py-0.5 bg-emerald-950/90 border border-emerald-700/50 rounded text-[9px] text-emerald-300 max-w-[120px] truncate nodrag nopan"
-          >
-            {label as string}
-          </div>
-        </EdgeLabelRenderer>
-      )}
-    </>
+    <BaseEdge
+      path={edgePath}
+      markerEnd={markerEnd}
+      style={{
+        stroke: "#22c55e",
+        strokeWidth: 2,
+        strokeDasharray: "6,3",
+      }}
+    />
   );
 }
 
 function PlannedEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd } = props;
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd } = props;
+  const [edgePath] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
 
   return (
-    <>
-      <BaseEdge
-        path={edgePath}
-        markerEnd={markerEnd}
-        style={{
-          stroke: "#64748b",
-          strokeWidth: 1.5,
-          strokeDasharray: "6,4",
-          opacity: 0.5,
-        }}
-      />
-      {label && (
-        <EdgeLabelRenderer>
-          <div
-            style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, opacity: 0.6 }}
-            className="absolute pointer-events-none px-1.5 py-0.5 bg-slate-900/80 border border-slate-600/40 rounded text-[9px] text-slate-400 max-w-[120px] truncate nodrag nopan"
-          >
-            {label as string}
-          </div>
-        </EdgeLabelRenderer>
-      )}
-    </>
+    <BaseEdge
+      path={edgePath}
+      markerEnd={markerEnd}
+      style={{
+        stroke: "#94a3b8",
+        strokeWidth: 1.5,
+        strokeDasharray: "8,5",
+        opacity: 0.6,
+      }}
+    />
   );
 }
 
@@ -286,27 +319,24 @@ const edgeTypes = { active: ActiveEdge, recent: RecentEdge, planned: PlannedEdge
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
-function toRFNodes(
-  agents: FlowAgent[],
-  activity: Record<string, AgentActivity> = {}
-): Node[] {
+function toRFNodes(agents: FlowAgent[], activity: Record<string, AgentActivity> = {}): Node[] {
   return agents.map((a, i) => ({
     id: a.id,
     type: "agent",
-    position: getPosition(a.id, i, agents.length),
+    position: getPosition(a.id, i),
     data: { ...a, activity: activity[a.id] ?? null },
     draggable: true,
   }));
 }
 
-function toRFEdges(edges: FlowEdgeData[]): Edge[] {
-  return edges.map((e) => {
+function toRFEdges(rawEdges: FlowEdgeData[]): Edge[] {
+  return rawEdges.map((e) => {
     const edgeType = resolveEdgeType(e);
     const isActive = edgeType === "active";
     const markerColor =
-      edgeType === "active" ? "#818cf8" :
+      edgeType === "active" ? "#6366f1" :
       edgeType === "recent" ? "#22c55e" :
-      "#64748b";
+      "#94a3b8";
 
     return {
       id: e.id,
@@ -318,8 +348,8 @@ function toRFEdges(edges: FlowEdgeData[]): Edge[] {
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: markerColor,
-        width: 16,
-        height: 16,
+        width: 18,
+        height: 18,
       },
       data: e as unknown as Record<string, unknown>,
     };
@@ -330,52 +360,82 @@ function toRFEdges(edges: FlowEdgeData[]): Edge[] {
 
 function FlowLegend() {
   return (
-    <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-1.5 bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg px-3 py-2.5 text-[11px] pointer-events-none">
-      <div className="flex items-center gap-2 text-slate-300">
-        <span className="w-6 h-0.5 rounded bg-gradient-to-r from-indigo-500 to-violet-500 shadow shadow-indigo-500/50 flex-shrink-0" />
-        <span>A acontecer agora</span>
+    <div
+      style={{
+        position: "absolute",
+        bottom: 16,
+        left: 16,
+        zIndex: 10,
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(6px)",
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+        pointerEvents: "none",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+      }}
+    >
+      {/* Active */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <svg width={28} height={4}>
+          <line x1={0} y1={2} x2={28} y2={2} stroke="#6366f1" strokeWidth={4} />
+        </svg>
+        <span style={{ fontSize: 11, color: "#475569" }}>A acontecer agora</span>
       </div>
-      <div className="flex items-center gap-2 text-slate-300">
-        <span className="w-6 h-0 border-t border-dashed border-emerald-500 flex-shrink-0" style={{ borderSpacing: "3px" }} />
-        <span>Concluído recentemente</span>
+      {/* Recent */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <svg width={28} height={4}>
+          <line x1={0} y1={2} x2={28} y2={2} stroke="#22c55e" strokeWidth={2} strokeDasharray="6,3" />
+        </svg>
+        <span style={{ fontSize: 11, color: "#475569" }}>Concluído recentemente</span>
       </div>
-      <div className="flex items-center gap-2 text-slate-400 opacity-60">
-        <span className="w-6 h-0 border-t border-dashed border-slate-500 flex-shrink-0" />
-        <span>Planeado</span>
+      {/* Planned */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <svg width={28} height={4}>
+          <line x1={0} y1={2} x2={28} y2={2} stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="8,5" opacity={0.6} />
+        </svg>
+        <span style={{ fontSize: 11, color: "#94a3b8" }}>Planeado</span>
       </div>
     </div>
   );
 }
 
-// ─── Stats counter ────────────────────────────────────────────────────────────
+// ─── Stats ────────────────────────────────────────────────────────────────────
 
 function StatsCounter({ stats }: { stats: FlowStats }) {
   return (
-    <div className="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 pointer-events-none flex gap-2">
-      <span className="text-indigo-400 font-semibold">{stats.active}</span>
-      <span className="text-slate-500">activos</span>
-      <span className="text-slate-600">·</span>
-      <span className="text-emerald-400 font-semibold">{stats.recent}</span>
-      <span className="text-slate-500">recentes</span>
-      <span className="text-slate-600">·</span>
-      <span className="text-slate-400 font-semibold">{stats.planned}</span>
-      <span className="text-slate-500">planeados</span>
+    <div
+      style={{
+        position: "absolute",
+        top: 16,
+        right: 16,
+        zIndex: 10,
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(6px)",
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+        padding: "8px 14px",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        pointerEvents: "none",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        fontSize: 12,
+        color: "#64748b",
+      }}
+    >
+      <span style={{ color: "#6366f1", fontWeight: 700 }}>{stats.active}</span>
+      <span>activos</span>
+      <span style={{ color: "#cbd5e1" }}>·</span>
+      <span style={{ color: "#22c55e", fontWeight: 700 }}>{stats.recent}</span>
+      <span>recentes</span>
+      <span style={{ color: "#cbd5e1" }}>·</span>
+      <span style={{ color: "#94a3b8", fontWeight: 700 }}>{stats.planned}</span>
+      <span>planeados</span>
     </div>
-  );
-}
-
-// ─── SVG Gradient defs ────────────────────────────────────────────────────────
-
-function SvgDefs() {
-  return (
-    <svg width="0" height="0" style={{ position: "absolute" }}>
-      <defs>
-        <linearGradient id="activeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#a855f7" />
-        </linearGradient>
-      </defs>
-    </svg>
   );
 }
 
@@ -400,12 +460,11 @@ export function FlowView() {
       if (data.stats) {
         setStats(data.stats);
       } else {
-        // Compute from edges if stats not provided
-        const edges = data.edges ?? [];
+        const rawEdges = data.edges ?? [];
         setStats({
-          active:  edges.filter(e => resolveEdgeType(e) === "active").length,
-          recent:  edges.filter(e => resolveEdgeType(e) === "recent").length,
-          planned: edges.filter(e => resolveEdgeType(e) === "planned").length,
+          active:  rawEdges.filter((e) => resolveEdgeType(e) === "active").length,
+          recent:  rawEdges.filter((e) => resolveEdgeType(e) === "recent").length,
+          planned: rawEdges.filter((e) => resolveEdgeType(e) === "planned").length,
         });
       }
 
@@ -423,22 +482,55 @@ export function FlowView() {
   }, [fetchFlow]);
 
   return (
-    <div className="w-full h-[calc(100vh-180px)] min-h-[500px] rounded-xl overflow-hidden border border-slate-700 bg-slate-950 relative">
-      <SvgDefs />
-
+    <div
+      style={{
+        width: "100%",
+        height: "calc(100vh - 180px)",
+        minHeight: 500,
+        borderRadius: 12,
+        overflow: "hidden",
+        border: "1px solid #e2e8f0",
+        background: "#f1f5f9",
+        position: "relative",
+      }}
+    >
       {/* Error banner */}
       {error && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-red-950/90 text-red-300 text-xs px-3 py-1.5 rounded-full border border-red-800 backdrop-blur">
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 20,
+            background: "rgba(254,242,242,0.95)",
+            color: "#dc2626",
+            fontSize: 12,
+            padding: "6px 14px",
+            borderRadius: 999,
+            border: "1px solid #fca5a5",
+          }}
+        >
           ⚠ {error}
         </div>
       )}
 
-      {/* Stats counter — top right */}
+      {/* Stats — top right */}
       <StatsCounter stats={stats} />
 
       {/* Last updated — bottom right */}
       {lastUpdated && (
-        <div className="absolute bottom-4 right-4 z-10 text-[10px] text-slate-600 pointer-events-none">
+        <div
+          style={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            zIndex: 10,
+            fontSize: 10,
+            color: "#94a3b8",
+            pointerEvents: "none",
+          }}
+        >
           ↻ {lastUpdated.toLocaleTimeString()}
         </div>
       )}
@@ -448,8 +540,20 @@ export function FlowView() {
 
       {/* Loading */}
       {nodes.length === 0 && !error && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <span className="text-slate-500 text-sm animate-pulse">A carregar agentes…</span>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}
+        >
+          <span style={{ color: "#94a3b8", fontSize: 14 }} className="animate-pulse">
+            A carregar agentes…
+          </span>
         </div>
       )}
 
@@ -461,21 +565,21 @@ export function FlowView() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.15, maxZoom: 1.2 }}
-        colorMode="dark"
-        minZoom={0.3}
+        fitViewOptions={{ padding: 0.2 }}
+        nodesDraggable={true}
+        zoomOnScroll={true}
+        minZoom={0.2}
         maxZoom={2}
         defaultEdgeOptions={{ animated: false }}
         proOptions={{ hideAttribution: true }}
       >
         <Background
-          color="#1e293b"
+          color="#cbd5e1"
           gap={24}
           size={1}
-          style={{ backgroundColor: "#020617" }}
+          style={{ backgroundColor: "#f1f5f9" }}
         />
         <Controls
-          className="bg-slate-800/80 border-slate-700 [&>button]:border-slate-700 [&>button]:bg-slate-800 [&>button]:text-slate-300 [&>button:hover]:bg-slate-700"
           showInteractive={false}
         />
       </ReactFlow>
