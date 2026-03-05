@@ -1,0 +1,23 @@
+services:
+  dev-dashboard:
+    build: .
+    container_name: dev-dashboard
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/dashboard.db
+      - OPENCLAW_GATEWAY_URL=http://172.18.0.1:18789
+      - OPENCLAW_GATEWAY_TOKEN=5f75f44e51ae1f99a4eb08b54cd245a09bb7d41cb8c3fb1b
+    ports:
+      - "3000:3000"
+    volumes:
+      - dashboard-data:/app/data
+    networks:
+      - vps-net
+
+volumes:
+  dashboard-data:
+
+networks:
+  vps-net:
+    external: true
