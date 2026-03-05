@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/kanban-board";
 import { AgentsPanel } from "@/components/agents-panel";
 import { LogsPanel } from "@/components/logs-panel";
+import { FlowView } from "@/components/flow-view";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 
@@ -61,6 +62,7 @@ export default function Home() {
             </TabsTrigger>
             <TabsTrigger value="agents">Agentes</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="fluxo">🔀 Fluxo</TabsTrigger>
           </TabsList>
 
           <TabsContent value="kanban">
@@ -73,6 +75,10 @@ export default function Home() {
 
           <TabsContent value="logs">
             <LogsPanel />
+          </TabsContent>
+
+          <TabsContent value="fluxo">
+            <FlowView />
           </TabsContent>
         </Tabs>
       </div>
