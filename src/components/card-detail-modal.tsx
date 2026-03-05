@@ -299,12 +299,11 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
     <>
       <Dialog open={!!taskId} onOpenChange={onClose}>
         <DialogContent
-          className={`
-            flex flex-col gap-0 p-0 overflow-hidden
-            transition-all duration-300 h-[85vh]
-            ${hasSub ? "max-w-5xl" : "max-w-2xl"}
-          `}
+          className={`p-0 gap-0 overflow-hidden transition-all duration-300 ${hasSub ? "max-w-5xl" : "max-w-2xl"}`}
         >
+          {/* wrapper flex — dentro do grid do Dialog */}
+          <div className="flex flex-col h-[82vh] overflow-hidden">
+
           {/* ── Danger zone header ── */}
           <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b shrink-0">
             <div className="flex-1 min-w-0">
@@ -446,6 +445,7 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
               </div>
             )}
           </div>
+          </div>{/* end flex wrapper */}
         </DialogContent>
       </Dialog>
 
