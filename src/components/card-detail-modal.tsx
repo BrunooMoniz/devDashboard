@@ -17,7 +17,7 @@ import {
   Task, TaskDetail, TaskComment, COLUMNS, PRIORITY_VARIANTS, AGENT_INFO, getTags, timeAgo,
 } from "@/lib/types";
 import { CreateCardModal } from "./create-card-modal";
-import { CheckCircle, XCircle, Clock, GitBranch } from "lucide-react";
+import { CheckCircle, XCircle, Clock, GitBranch, Ban, Trash2 } from "lucide-react";
 
 const COMMENT_ICONS: Record<string, string> = {
   comment: "💬",
@@ -42,6 +42,7 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
   const [showApproval, setShowApproval] = useState(false);
   const [showSubCard, setShowSubCard] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const fetchDetail = async () => {
     if (!taskId) return;
@@ -54,6 +55,28 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
   }, [taskId]);
 
   if (!taskId) return null;
+
+  const cancelCard = async () => {
+    if (!detail) return;
+    setLoading(true);
+    await fetch(`/api/tasks/${detail.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cancelled", agentId: "main", comment: "Card cancelado por Moniz." }),
+    });
+    setLoading(false);
+    onRefresh();
+    onClose();
+  };
+
+  const deleteCard = async () => {
+    if (!detail) return;
+    setLoading(true);
+    await fetch(`/api/tasks/${detail.id}`, { method: "DELETE" });
+    setLoading(false);
+    onRefresh();
+    onClose();
+  };
 
   const needsApproval =
     detail?.status === "waiting_approval" || detail?.status === "waiting_deploy";
@@ -139,6 +162,41 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
               )}
             </div>
           </DialogHeader>
+
+          {/* Danger zone */}
+          {detail?.status !== "cancelled" && (
+            <div className="flex gap-2 pt-1 pb-2 border-b">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+                onClick={cancelCard}
+                disabled={loading}
+              >
+                <Ban className="w-3.5 h-3.5" /> Cancelar card
+              </Button>
+              {!confirmDelete ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 ml-auto"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Apagar
+                </Button>
+              ) : (
+                <div className="ml-auto flex gap-1.5 items-center">
+                  <span className="text-xs text-red-600 font-medium">Tens a certeza?</span>
+                  <Button size="sm" variant="destructive" onClick={deleteCard} disabled={loading}>
+                    Sim, apagar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>
+                    Não
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           <ScrollArea className="flex-1 -mx-6 px-6">
             <div className="space-y-4 pb-4">

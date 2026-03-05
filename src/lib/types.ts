@@ -6,7 +6,8 @@ export type TaskStatus =
   | "qa"
   | "waiting_approval"
   | "waiting_deploy"
-  | "done";
+  | "done"
+  | "cancelled";
 
 export type Priority = "low" | "medium" | "high" | "critical";
 export type CommentType =
@@ -69,6 +70,7 @@ export const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
   { key: "waiting_approval", label: "Aguardando Aprovação", color: "bg-red-50 dark:bg-red-950" },
   { key: "waiting_deploy", label: "Deploy", color: "bg-indigo-50 dark:bg-indigo-950" },
   { key: "done", label: "Concluído", color: "bg-green-50 dark:bg-green-950" },
+  { key: "cancelled", label: "Cancelado", color: "bg-slate-100 dark:bg-slate-900 opacity-75" },
 ];
 
 export const PRIORITY_VARIANTS: Record<Priority, string> = {
