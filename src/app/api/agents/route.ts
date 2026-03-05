@@ -12,7 +12,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   await ensureDB();
   const body = await req.json();
-  const { id, status, currentTask, name, emoji } = body;
+  const { id, status, currentTask, name, emoji, model } = body;
 
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
@@ -21,6 +21,7 @@ export async function PATCH(req: NextRequest) {
     ...(currentTask !== undefined && { currentTask }),
     ...(name !== undefined && { name }),
     ...(emoji !== undefined && { emoji }),
+    ...(model !== undefined && { model }),
     lastSeen: new Date(),
   }).where(eq(agents.id, id));
 
