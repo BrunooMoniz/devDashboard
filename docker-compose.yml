@@ -13,7 +13,8 @@ services:
     volumes:
       - dashboard-data:/app/data
     networks:
-      - vps-net
+      vps-net:
+        ipv4_address: 172.18.0.3
 
 volumes:
   dashboard-data:
