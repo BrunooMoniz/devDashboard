@@ -59,6 +59,8 @@ export function AgentsPanel() {
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState(false);
   const [changingModel, setChangingModel] = useState<string | null>(null);
+  const [monizCreated, setMonizCreated] = useState(0);
+  const [monizApprovals, setMonizApprovals] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch agents
@@ -68,6 +70,22 @@ export function AgentsPanel() {
     };
     load();
     const i = setInterval(load, 5000);
+    return () => clearInterval(i);
+  }, []);
+
+  // Fetch Moniz stats
+  useEffect(() => {
+    const loadMonizStats = async () => {
+      try {
+        const r = await fetch("/api/tasks");
+        if (!r.ok) return;
+        const all = await r.json();
+        setMonizCreated(all.filter((t: any) => t.assignedAgent === "moniz").length);
+        setMonizApprovals(all.filter((t: any) => t.approvedBy === "moniz").length);
+      } catch {}
+    };
+    loadMonizStats();
+    const i = setInterval(loadMonizStats, 10000);
     return () => clearInterval(i);
   }, []);
 
@@ -168,6 +186,36 @@ export function AgentsPanel() {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {/* ── Moniz card (special, always first) ── */}
+        <Card className="border-amber-300 bg-amber-50/50 dark:bg-amber-950/20 hover:shadow-md transition-shadow">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">👤</span>
+                <div>
+                  <p className="font-semibold">Moniz</p>
+                  <p className="text-xs text-muted-foreground">Product Owner</p>
+                </div>
+              </div>
+              <span className="w-2.5 h-2.5 rounded-full mt-1 shrink-0 bg-green-500" />
+            </div>
+            <div className="space-y-1.5">
+              <Badge className="text-xs bg-green-500 hover:bg-green-500">Ativo</Badge>
+              <p className="text-xs text-muted-foreground">
+                {monizCreated} cards criados | {monizApprovals} aprovações
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs gap-1.5 border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 cursor-default"
+              disabled
+            >
+              👤 Tu és este
+            </Button>
+          </CardContent>
+        </Card>
+
         {agents.map(agent => {
           const agentLogs = logs[agent.id] ?? [];
           const alert = needsUpgradeAlert(agent, agentLogs);

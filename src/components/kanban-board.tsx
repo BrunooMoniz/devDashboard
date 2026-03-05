@@ -19,23 +19,35 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, AlertCircle, GripVertical } from "lucide-react";
 import {
-  Task, TaskStatus, COLUMNS, PRIORITY_VARIANTS, AGENT_INFO, getTags, timeAgo,
+  Task, TaskStatus, COLUMNS, PRIORITY_VARIANTS, PRIORITY_ICONS, AGENT_INFO, getTags, timeAgo,
+  Agent,
 } from "@/lib/types";
 import { CreateCardModal } from "./create-card-modal";
 import { CardDetailModal } from "./card-detail-modal";
+
+// ─── Mini progress bar ───────────────────────────────────────────────────────
+function miniProgressBar(done: number, total: number): string {
+  if (total === 0) return "";
+  const filled = Math.round((done / total) * 3);
+  return "▓".repeat(filled) + "░".repeat(3 - filled);
+}
 
 // ─── Draggable Card ─────────────────────────────────────────────────────────
 
 function KanbanCard({
   task,
-  isApproval,
   onClick,
   overlay = false,
+  agents = [],
+  subTaskTotal = 0,
+  subTaskDone = 0,
 }: {
   task: Task;
-  isApproval: boolean;
   onClick: () => void;
   overlay?: boolean;
+  agents?: Agent[];
+  subTaskTotal?: number;
+  subTaskDone?: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -49,6 +61,12 @@ function KanbanCard({
   };
 
   const tags = getTags(task.tags);
+  const isApprovalCard = task.status === "waiting_approval" || !!task.approvalType;
+  const agentInfo = task.assignedAgent ? agents.find(a => a.id === task.assignedAgent) : null;
+  const agentEmoji = task.assignedAgent
+    ? (AGENT_INFO[task.assignedAgent]?.emoji ?? "🤖")
+    : null;
+  const agentName = agentInfo?.name ?? task.assignedAgent;
 
   return (
     <div
@@ -56,11 +74,20 @@ function KanbanCard({
       style={overlay ? { cursor: "grabbing" } : style}
       className={`
         bg-background rounded-lg border p-3 space-y-2 select-none
-        hover:shadow-md hover:border-primary/40 transition-all
-        ${isApproval ? "border-orange-300" : ""}
+        hover:shadow-md transition-all
+        ${isApprovalCard ? "border-yellow-400 border-2" : "hover:border-primary/40"}
         ${overlay ? "shadow-xl rotate-1 opacity-95" : ""}
       `}
     >
+      {/* Approval badge */}
+      {isApprovalCard && (
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] font-semibold text-yellow-700 bg-yellow-100 border border-yellow-300 rounded px-1.5 py-0.5">
+            ⏳ Aprovação
+          </span>
+        </div>
+      )}
+
       {/* Drag handle + title */}
       <div className="flex items-start gap-1.5">
         {!overlay && (
@@ -98,25 +125,39 @@ function KanbanCard({
       )}
 
       <div className="flex items-center justify-between pl-5">
-        <Badge
-          variant={PRIORITY_VARIANTS[task.priority] as any}
-          className="text-[10px] px-1.5 py-0"
-        >
-          {task.priority}
-        </Badge>
+        <div className="flex items-center gap-1">
+          <span className="text-sm">{PRIORITY_ICONS[task.priority] ?? ""}</span>
+          <Badge
+            variant={PRIORITY_VARIANTS[task.priority] as any}
+            className="text-[10px] px-1.5 py-0"
+          >
+            {task.priority}
+          </Badge>
+        </div>
         <div className="flex items-center gap-1">
           {task.reviewCycles > 0 && (
             <span className="text-[10px] text-muted-foreground">🔄{task.reviewCycles}</span>
           )}
-          {task.assignedAgent ? (
-            <span className="text-sm" title={task.assignedAgent}>
-              {AGENT_INFO[task.assignedAgent]?.emoji ?? "🤖"}
+          {agentEmoji ? (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5" title={agentName ?? ""}>
+              <span className="text-sm">{agentEmoji}</span>
+              <span>{agentName}</span>
             </span>
           ) : (
             <span className="text-[10px] text-muted-foreground">sem dono</span>
           )}
         </div>
       </div>
+
+      {/* Sub-tasks count + progress */}
+      {subTaskTotal > 0 && (
+        <div className="flex items-center gap-2 pl-5 text-[10px] text-muted-foreground">
+          <span>📎 {subTaskTotal}</span>
+          <span className="font-mono tracking-tighter">
+            {miniProgressBar(subTaskDone, subTaskTotal)} {subTaskDone}/{subTaskTotal}
+          </span>
+        </div>
+      )}
 
       <p className="text-[10px] text-muted-foreground pl-5">{timeAgo(task.updatedAt)}</p>
     </div>
@@ -129,10 +170,14 @@ function KanbanColumn({
   col,
   tasks,
   onCardClick,
+  agents,
+  subTaskMap,
 }: {
   col: (typeof COLUMNS)[number];
   tasks: Task[];
   onCardClick: (id: string) => void;
+  agents: Agent[];
+  subTaskMap: Record<string, { total: number; done: number }>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.key });
   const isApproval = col.key === "waiting_approval" || col.key === "waiting_deploy";
@@ -167,8 +212,10 @@ function KanbanColumn({
               <KanbanCard
                 key={task.id}
                 task={task}
-                isApproval={isApproval}
                 onClick={() => onCardClick(task.id)}
+                agents={agents}
+                subTaskTotal={subTaskMap[task.id]?.total ?? 0}
+                subTaskDone={subTaskMap[task.id]?.done ?? 0}
               />
             ))}
 
@@ -195,8 +242,10 @@ function KanbanColumn({
 
 // ─── Main Board ──────────────────────────────────────────────────────────────
 
-export function KanbanBoard() {
+export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [subTaskMap, setSubTaskMap] = useState<Record<string, { total: number; done: number }>>({});
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -211,22 +260,47 @@ export function KanbanBoard() {
   );
 
   const fetchTasks = async () => {
-    const res = await fetch("/api/tasks?rootOnly=true");
-    const data = await res.json();
+    const [rootRes, allRes] = await Promise.all([
+      fetch("/api/tasks?rootOnly=true"),
+      fetch("/api/tasks"),
+    ]);
+    const rootData = await rootRes.json();
+    const allData = await allRes.json();
+
+    // Build sub-task count map
+    const counts: Record<string, { total: number; done: number }> = {};
+    for (const t of allData) {
+      if (t.parentId) {
+        if (!counts[t.parentId]) counts[t.parentId] = { total: 0, done: 0 };
+        counts[t.parentId].total++;
+        if (t.status === "done") counts[t.parentId].done++;
+      }
+    }
+    setSubTaskMap(counts);
+
     // Clear optimistic overrides for tasks that came back from server
-    for (const t of data) {
+    for (const t of rootData) {
       if (optimistic.current[t.id] === t.status) {
         delete optimistic.current[t.id];
       }
     }
-    setTasks(data);
+    setTasks(rootData);
     if (loading) setLoading(false);
+  };
+
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch("/api/agents");
+      if (res.ok) setAgents(await res.json());
+    } catch {}
   };
 
   useEffect(() => {
     fetchTasks();
+    fetchAgents();
     const i = setInterval(fetchTasks, 5000);
-    return () => clearInterval(i);
+    const j = setInterval(fetchAgents, 15000);
+    return () => { clearInterval(i); clearInterval(j); };
   }, []);
 
   // Effective tasks with optimistic overrides applied
@@ -236,8 +310,11 @@ export function KanbanBoard() {
       : t
   );
 
-  const byStatus = (status: string) =>
-    effectiveTasks.filter((t) => t.status === status);
+  const byStatus = (status: string) => {
+    // If approval filter is active, only show tasks in the filtered column, all others empty
+    if (filterStatus && status !== filterStatus) return [];
+    return effectiveTasks.filter((t) => t.status === status);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const task = tasks.find((t) => t.id === event.active.id);
@@ -307,6 +384,8 @@ export function KanbanBoard() {
               col={col}
               tasks={byStatus(col.key)}
               onCardClick={(id) => setSelectedId(id)}
+              agents={agents}
+              subTaskMap={subTaskMap}
             />
           ))}
         </div>
@@ -315,9 +394,11 @@ export function KanbanBoard() {
           {activeTask && (
             <KanbanCard
               task={activeTask}
-              isApproval={false}
               onClick={() => {}}
               overlay
+              agents={agents}
+              subTaskTotal={subTaskMap[activeTask.id]?.total ?? 0}
+              subTaskDone={subTaskMap[activeTask.id]?.done ?? 0}
             />
           )}
         </DragOverlay>

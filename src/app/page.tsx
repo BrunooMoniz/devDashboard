@@ -11,6 +11,8 @@ import { AlertCircle } from "lucide-react";
 
 export default function Home() {
   const [pendingCount, setPendingCount] = useState(0);
+  const [filterApproval, setFilterApproval] = useState(false);
+  const [activeTab, setActiveTab] = useState("kanban");
 
   useEffect(() => {
     const fetch_ = async () => {
@@ -22,6 +24,11 @@ export default function Home() {
     const i = setInterval(fetch_, 5000);
     return () => clearInterval(i);
   }, []);
+
+  const handlePendingClick = () => {
+    setActiveTab("kanban");
+    setFilterApproval((prev) => !prev);
+  };
 
   return (
     <main className="min-h-screen bg-background">
@@ -35,22 +42,34 @@ export default function Home() {
               Multi-agent software development · Moniz
             </p>
           </div>
-          {pendingCount > 0 && (
-            <div className="flex items-center gap-2 bg-orange-50 dark:bg-orange-950/50 border border-orange-200 rounded-lg px-3 py-2">
-              <AlertCircle className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
-                {pendingCount} aprovação{pendingCount > 1 ? "ões" : ""} pendente{pendingCount > 1 ? "s" : ""}
-              </span>
-              <Badge variant="destructive" className="text-xs h-5 px-1.5">
-                {pendingCount}
-              </Badge>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {pendingCount > 0 && (
+              <button
+                onClick={handlePendingClick}
+                className={`flex items-center gap-2 border rounded-lg px-3 py-2 transition-all cursor-pointer hover:shadow-sm ${
+                  filterApproval
+                    ? "bg-yellow-100 border-yellow-400 dark:bg-yellow-900/50"
+                    : "bg-orange-50 dark:bg-orange-950/50 border-orange-200 hover:border-orange-400"
+                }`}
+              >
+                <AlertCircle className="w-4 h-4 text-orange-500" />
+                <span className={`text-sm font-medium ${filterApproval ? "text-yellow-800 dark:text-yellow-300" : "text-orange-700 dark:text-orange-400"}`}>
+                  ⏳ {pendingCount} pendente{pendingCount > 1 ? "s" : ""} de aprovação
+                </span>
+                <Badge variant="destructive" className="text-xs h-5 px-1.5">
+                  {pendingCount}
+                </Badge>
+                {filterApproval && (
+                  <span className="text-[10px] text-yellow-700 font-semibold">· filtrado</span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="max-w-[1600px] mx-auto px-6 py-4">
-        <Tabs defaultValue="kanban">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="kanban" className="relative">
               Kanban
@@ -66,7 +85,7 @@ export default function Home() {
           </TabsList>
 
           <TabsContent value="kanban">
-            <KanbanBoard />
+            <KanbanBoard filterStatus={filterApproval ? "waiting_approval" : undefined} />
           </TabsContent>
 
           <TabsContent value="agents">

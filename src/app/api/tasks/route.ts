@@ -21,6 +21,18 @@ export async function GET(req: NextRequest) {
   if (parentId) filtered = filtered.filter((t) => t.parentId === parentId);
   if (rootOnly) filtered = filtered.filter((t) => !t.parentId);
 
+  const withStats = searchParams.get("withStats") === "true";
+  if (withStats) {
+    const pendingApprovals = all.filter((t) => t.status === "waiting_approval").length;
+    return NextResponse.json({
+      tasks: filtered,
+      stats: {
+        pendingApprovals,
+        total: all.length,
+      },
+    });
+  }
+
   return NextResponse.json(filtered);
 }
 

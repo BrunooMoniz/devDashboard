@@ -72,6 +72,7 @@ interface FlowData {
 // Reviewer x:150  y:740  QA x:500  y:740  DevOps x:850  y:740
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
+  moniz:     { x: 500, y: -180 }, // Moniz — Product Owner, above Atlas
   main:      { x: 500, y:   0 },  // Atlas
   pm:        { x: 500, y: 200 },  // Iris
   architect: { x: 500, y: 380 },  // Orion
@@ -124,12 +125,15 @@ interface AgentNodeData extends FlowAgent {
 
 function AgentNode({ data }: NodeProps) {
   const d = data as unknown as AgentNodeData;
+  const isMoniz = d.id === "moniz";
   const isWorking = d.status === "working";
   const isError   = d.status === "error";
   const isOffline = d.status === "offline";
 
   // Status dot colour
-  const dotClass = isWorking
+  const dotClass = isMoniz
+    ? "bg-green-500"
+    : isWorking
     ? "bg-emerald-500 animate-pulse"
     : isError
     ? "bg-red-500"
@@ -137,24 +141,30 @@ function AgentNode({ data }: NodeProps) {
     ? "bg-slate-400"
     : "bg-slate-400";
 
-  const statusText = isWorking ? "Working" : isError ? "Error" : isOffline ? "Offline" : "Idle";
+  const statusText = isMoniz ? "Active" : isWorking ? "Working" : isError ? "Error" : isOffline ? "Offline" : "Idle";
 
-  // Border accent when working
-  const borderStyle = isWorking
+  // Border accent
+  const borderStyle = isMoniz
+    ? "border-amber-400"
+    : isWorking
     ? "border-emerald-300"
     : isError
     ? "border-red-300"
     : "border-slate-300";
+
+  const bgColor = isMoniz ? "#fffbeb" : "#f8fafc";
 
   return (
     <div
       style={{
         width: 200,
         minHeight: 120,
-        background: "#f8fafc",
+        background: bgColor,
         borderRadius: 12,
         border: `1.5px solid`,
-        boxShadow: "0 2px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.08)",
+        boxShadow: isMoniz
+          ? "0 2px 12px rgba(245,158,11,0.15), 0 1px 3px rgba(0,0,0,0.08)"
+          : "0 2px 12px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.08)",
         padding: "10px 14px",
         display: "flex",
         flexDirection: "column",
@@ -238,10 +248,12 @@ function AgentNode({ data }: NodeProps) {
 // ─── Custom Edges ─────────────────────────────────────────────────────────────
 
 function ActiveEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd, data } = props;
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd, data, style } = props;
   const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   const eData = data as unknown as FlowEdgeData | undefined;
-  const displayLabel = shortLabel(label as string ?? "", eData?.priority);
+  const displayLabel = label ? shortLabel(label as string, eData?.priority) : undefined;
+  const customColor = (style as any)?.stroke ?? "#6366f1";
+  const customWidth = (style as any)?.strokeWidth ?? 4;
 
   return (
     <>
@@ -249,9 +261,9 @@ function ActiveEdge(props: EdgeProps) {
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: "#6366f1",
-          strokeWidth: 4,
-          filter: "drop-shadow(0 0 4px rgba(99,102,241,0.5))",
+          stroke: customColor,
+          strokeWidth: customWidth,
+          filter: `drop-shadow(0 0 4px ${customColor}80)`,
         }}
       />
       {displayLabel && (
@@ -297,20 +309,46 @@ function RecentEdge(props: EdgeProps) {
 }
 
 function PlannedEdge(props: EdgeProps) {
-  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd } = props;
-  const [edgePath] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, label, style } = props;
+  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const customColor = (style as any)?.stroke ?? "#94a3b8";
+  const customWidth = (style as any)?.strokeWidth ?? 1.5;
+  const displayLabel = label ? shortLabel(label as string, undefined) : undefined;
 
   return (
-    <BaseEdge
-      path={edgePath}
-      markerEnd={markerEnd}
-      style={{
-        stroke: "#94a3b8",
-        strokeWidth: 1.5,
-        strokeDasharray: "8,5",
-        opacity: 0.6,
-      }}
-    />
+    <>
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          stroke: customColor,
+          strokeWidth: customWidth,
+          strokeDasharray: "8,5",
+          opacity: 0.7,
+        }}
+      />
+      {displayLabel && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              position: "absolute",
+              pointerEvents: "none",
+              padding: "2px 6px",
+              borderRadius: 4,
+              fontSize: 10,
+              fontWeight: 600,
+              background: "rgba(255,251,235,0.95)",
+              color: "#92400e",
+              border: "1px solid #fcd34d",
+            }}
+            className="nodrag nopan"
+          >
+            {displayLabel}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
   );
 }
 
@@ -320,13 +358,36 @@ const edgeTypes = { active: ActiveEdge, recent: RecentEdge, planned: PlannedEdge
 // ─── Converters ───────────────────────────────────────────────────────────────
 
 function toRFNodes(agents: FlowAgent[], activity: Record<string, AgentActivity> = {}): Node[] {
-  return agents.map((a, i) => ({
+  const nodeList = agents.map((a, i) => ({
     id: a.id,
     type: "agent",
     position: getPosition(a.id, i),
     data: { ...a, activity: activity[a.id] ?? null },
     draggable: true,
   }));
+
+  // Inject Moniz node if not already in API data
+  if (!agents.find((a) => a.id === "moniz")) {
+    nodeList.unshift({
+      id: "moniz",
+      type: "agent",
+      position: AGENT_POSITIONS.moniz,
+      data: {
+        id: "moniz",
+        label: "Moniz",
+        role: "Product Owner",
+        emoji: "👤",
+        status: "idle" as const,
+        model: undefined,
+        currentTask: undefined,
+        lastSeen: new Date().toISOString(),
+        activity: null,
+      } as any,
+      draggable: true,
+    });
+  }
+
+  return nodeList;
 }
 
 function toRFEdges(rawEdges: FlowEdgeData[]): Edge[] {
@@ -454,8 +515,42 @@ export function FlowView() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: FlowData = await res.json();
 
-      setNodes(toRFNodes(data.nodes ?? [], data.agentActivity ?? {}));
-      setEdges(toRFEdges(data.edges ?? []));
+      const rfNodes = toRFNodes(data.nodes ?? [], data.agentActivity ?? {});
+      const rfEdges = toRFEdges(data.edges ?? []);
+
+      // Inject Moniz ↔ Atlas edges if not already present
+      const hasMonizAtlas = rfEdges.find((e) => e.source === "moniz" && e.target === "main");
+      const hasAtlasMoniz = rfEdges.find((e) => e.source === "main" && e.target === "moniz");
+
+      if (!hasMonizAtlas) {
+        rfEdges.push({
+          id: "moniz-to-main",
+          source: "moniz",
+          target: "main",
+          label: "delega",
+          type: "active",
+          animated: true,
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
+          style: { stroke: "#f59e0b", strokeWidth: 3 },
+          data: {} as Record<string, unknown>,
+        });
+      }
+      if (!hasAtlasMoniz) {
+        rfEdges.push({
+          id: "main-to-moniz",
+          source: "main",
+          target: "moniz",
+          label: "aprovação",
+          type: "planned",
+          animated: false,
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
+          style: { stroke: "#f59e0b", strokeWidth: 2, strokeDasharray: "8,5" },
+          data: {} as Record<string, unknown>,
+        });
+      }
+
+      setNodes(rfNodes);
+      setEdges(rfEdges);
 
       if (data.stats) {
         setStats(data.stats);

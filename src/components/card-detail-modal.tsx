@@ -190,16 +190,24 @@ function DetailPane({
             {(!detail.timeline || detail.timeline.length === 0) && (
               <p className="text-xs text-muted-foreground">Sem atividade ainda.</p>
             )}
-            {[...(detail.timeline ?? [])].reverse().map((c) => (
-              <div key={c.id} className="flex items-start gap-2 text-xs">
-                <span className="shrink-0 mt-0.5">{COMMENT_ICONS[c.type] ?? "•"}</span>
-                <span className="shrink-0 font-medium">
-                  {AGENT_INFO[c.agentId]?.emoji ?? "🤖"} {c.agentId}
-                </span>
-                <span className="flex-1 text-muted-foreground">{c.content}</span>
-                <span className="shrink-0 text-muted-foreground">{timeAgo(c.createdAt)}</span>
-              </div>
-            ))}
+            {[...(detail.timeline ?? [])].reverse().map((c) => {
+              const isMoniz = c.agentId === "moniz";
+              return (
+                <div
+                  key={c.id}
+                  className={`flex items-start gap-2 text-xs rounded-md px-1 py-0.5 ${
+                    isMoniz ? "bg-amber-50 border border-amber-200" : ""
+                  }`}
+                >
+                  <span className="shrink-0 mt-0.5">{COMMENT_ICONS[c.type] ?? "•"}</span>
+                  <span className={`shrink-0 font-medium ${isMoniz ? "text-amber-700" : ""}`}>
+                    {isMoniz ? "👤 Moniz" : `${AGENT_INFO[c.agentId]?.emoji ?? "🤖"} ${c.agentId}`}
+                  </span>
+                  <span className="flex-1 text-muted-foreground">{c.content}</span>
+                  <span className="shrink-0 text-muted-foreground">{timeAgo(c.createdAt)}</span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="space-y-2">
@@ -216,6 +224,194 @@ function DetailPane({
           </div>
         </div>
       </ScrollArea>
+    </div>
+  );
+}
+
+// ─── Modal body with approve/reject + timeline ────────────────────────────────
+
+function ModalDetailBody({
+  detail,
+  onRefresh,
+  onClose,
+}: {
+  detail: TaskDetail;
+  onRefresh: () => void;
+  onClose: () => void;
+}) {
+  const [comment, setComment] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const needsApproval =
+    detail.status === "waiting_approval" ||
+    (detail.status === "review" && !!detail.approvalType);
+  const needsDeployApproval = detail.status === "deploy" || detail.status === "waiting_deploy";
+
+  const doApprove = async () => {
+    setLoading(true);
+    try {
+      await fetch(`/api/tasks/${detail.id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: "moniz" }),
+      });
+      onRefresh();
+      onClose();
+    } finally { setLoading(false); }
+  };
+
+  const doReject = async () => {
+    if (!rejectReason.trim()) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/tasks/${detail.id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: rejectReason, agentId: "moniz" }),
+      });
+      onRefresh();
+      onClose();
+    } finally { setLoading(false); }
+  };
+
+  const addComment = async () => {
+    if (!comment.trim()) return;
+    setLoading(true);
+    try {
+      await fetch(`/api/tasks/${detail.id}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: "main", type: "comment", content: comment }),
+      });
+      setComment("");
+      onRefresh();
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="space-y-4 py-4">
+      {detail.description && (
+        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{detail.description}</p>
+      )}
+      {detail.architecture && (
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-3">
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
+            🏗️ Arquitetura
+          </p>
+          <p className="text-sm whitespace-pre-wrap">{detail.architecture}</p>
+        </div>
+      )}
+      {detail.reviewCycles > 0 && (
+        <p className="text-xs text-muted-foreground flex items-center gap-1">
+          <GitBranch className="w-3 h-3" /> {detail.reviewCycles} ciclo(s) de revisão
+        </p>
+      )}
+
+      {/* ── Approve/Reject buttons ── */}
+      {(needsApproval || needsDeployApproval) && (
+        <div className="rounded-lg border-2 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 p-3 space-y-2">
+          <p className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
+            ⏳ {needsDeployApproval ? "Aguardando aprovação de deploy" : "Aguardando aprovação"}
+          </p>
+          {!showRejectInput ? (
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className={`flex-1 h-9 text-sm font-semibold gap-1.5 ${needsDeployApproval ? "bg-green-800 hover:bg-green-900" : "bg-green-600 hover:bg-green-700"}`}
+                onClick={doApprove}
+                disabled={loading}
+              >
+                {needsDeployApproval ? "🚀 Aprovar Deploy" : "✅ Aprovar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                className="flex-1 h-9 text-sm font-semibold gap-1.5"
+                onClick={() => setShowRejectInput(true)}
+                disabled={loading}
+              >
+                {needsDeployApproval ? "⛔ Recusar Deploy" : "❌ Rejeitar"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Motivo da rejeição..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+                className="text-sm border-red-200 focus:border-red-400"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="flex-1 h-8 text-xs"
+                  onClick={doReject}
+                  disabled={loading || !rejectReason.trim()}
+                >
+                  Confirmar Rejeição
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs"
+                  onClick={() => { setShowRejectInput(false); setRejectReason(""); }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Separator />
+
+      {/* ── Timeline ── */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Timeline</p>
+        {(!detail.timeline || detail.timeline.length === 0) && (
+          <p className="text-xs text-muted-foreground">Sem atividade ainda.</p>
+        )}
+        {[...(detail.timeline ?? [])].reverse().map((c) => {
+          const isMoniz = c.agentId === "moniz";
+          return (
+            <div
+              key={c.id}
+              className={`flex items-start gap-2 text-xs rounded-md px-2 py-1 ${
+                isMoniz
+                  ? "bg-amber-50 border border-amber-200"
+                  : ""
+              }`}
+            >
+              <span className="shrink-0 mt-0.5">{COMMENT_ICONS[c.type] ?? "•"}</span>
+              <span className={`shrink-0 font-medium ${isMoniz ? "text-amber-700" : ""}`}>
+                {isMoniz ? "👤 Moniz" : `${AGENT_INFO[c.agentId]?.emoji ?? "🤖"} ${c.agentId}`}
+              </span>
+              <span className="flex-1 text-muted-foreground">{c.content}</span>
+              <span className="shrink-0 text-muted-foreground">{timeAgo(c.createdAt)}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Comment box ── */}
+      <div className="space-y-2">
+        <Textarea
+          placeholder="Adicionar comentário..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={2}
+          className="text-sm"
+        />
+        <Button size="sm" onClick={addComment} disabled={!comment.trim() || loading}>
+          Comentar
+        </Button>
+      </div>
     </div>
   );
 }
@@ -377,46 +573,11 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
           {/* Corpo scrollável */}
           {detail && (
             <ScrollArea className="flex-1 min-h-0 px-5">
-              <div className="space-y-4 py-4">
-                {detail.description && (
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{detail.description}</p>
-                )}
-                {detail.architecture && (
-                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 p-3">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
-                      🏗️ Arquitetura
-                    </p>
-                    <p className="text-sm whitespace-pre-wrap">{detail.architecture}</p>
-                  </div>
-                )}
-                {detail.reviewCycles > 0 && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <GitBranch className="w-3 h-3" /> {detail.reviewCycles} ciclo(s) de revisão
-                  </p>
-                )}
-                <Separator />
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Timeline</p>
-                  {(!detail.timeline || detail.timeline.length === 0) && (
-                    <p className="text-xs text-muted-foreground">Sem atividade ainda.</p>
-                  )}
-                  {[...(detail.timeline ?? [])].reverse().map((c) => (
-                    <div key={c.id} className="flex items-start gap-2 text-xs">
-                      <span className="shrink-0 mt-0.5">{COMMENT_ICONS[c.type] ?? "•"}</span>
-                      <span className="shrink-0 font-medium">
-                        {AGENT_INFO[c.agentId]?.emoji ?? "🤖"} {c.agentId}
-                      </span>
-                      <span className="flex-1 text-muted-foreground">{c.content}</span>
-                      <span className="shrink-0 text-muted-foreground">{timeAgo(c.createdAt)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <Textarea placeholder="Adicionar comentário..." rows={2} className="text-sm"
-                    onChange={(e) => e.target.value} />
-                  <Button size="sm">Comentar</Button>
-                </div>
-              </div>
+              <ModalDetailBody
+                detail={detail}
+                onRefresh={() => { fetchDetail(); onRefresh(); }}
+                onClose={onClose}
+              />
             </ScrollArea>
           )}
 

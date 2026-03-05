@@ -6,6 +6,7 @@ export type TaskStatus =
   | "qa"
   | "waiting_approval"
   | "waiting_deploy"
+  | "deploy"
   | "done"
   | "cancelled";
 
@@ -31,6 +32,9 @@ export type Task = {
   architecture: string | null;
   reviewCycles: number;
   approvalComment: string | null;
+  approvalType: string | null;
+  approvalReason: string | null;
+  approvedBy: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -89,6 +93,14 @@ export const AGENT_INFO: Record<string, { emoji: string; color: string }> = {
   devops: { emoji: "🚀", color: "text-emerald-600" },
   qa: { emoji: "🔍", color: "text-orange-600" },
   reviewer: { emoji: "👁️", color: "text-indigo-600" },
+  moniz: { emoji: "👤", color: "text-amber-600" },
+};
+
+export const PRIORITY_ICONS: Record<string, string> = {
+  critical: "🔴",
+  high: "🟠",
+  medium: "🟡",
+  low: "🟢",
 };
 
 export function getTags(raw: string | null): string[] {

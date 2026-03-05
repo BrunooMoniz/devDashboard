@@ -6,6 +6,23 @@ import { eq } from "drizzle-orm";
 export async function GET() {
   await ensureDB();
   const all = await db.select().from(agents);
+
+  // Add virtual "moniz" agent if not already in DB
+  const hasMoniz = all.some((a) => a.id === "moniz");
+  if (!hasMoniz) {
+    const monizAgent = {
+      id: "moniz",
+      name: "Moniz",
+      role: "Product Owner",
+      emoji: "👤",
+      status: "active" as const,
+      model: "human",
+      currentTask: null,
+      lastSeen: new Date(),
+    };
+    return NextResponse.json([...all, monizAgent]);
+  }
+
   return NextResponse.json(all);
 }
 

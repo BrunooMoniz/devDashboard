@@ -31,6 +31,9 @@ async function initDB() {
   const migrations = [
     "ALTER TABLE agents ADD COLUMN emoji TEXT DEFAULT '🤖'",
     "ALTER TABLE agents ADD COLUMN model TEXT DEFAULT 'claude-sonnet-4-6'",
+    "ALTER TABLE tasks ADD COLUMN approval_type TEXT",
+    "ALTER TABLE tasks ADD COLUMN approval_reason TEXT",
+    "ALTER TABLE tasks ADD COLUMN approved_by TEXT",
     `CREATE TABLE IF NOT EXISTS chat_messages (
       id TEXT PRIMARY KEY,
       agent_id TEXT NOT NULL,

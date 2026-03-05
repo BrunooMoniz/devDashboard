@@ -8,7 +8,9 @@ export type TaskStatus =
   | "qa"
   | "waiting_approval"
   | "waiting_deploy"
-  | "done";
+  | "deploy"
+  | "done"
+  | "cancelled";
 
 export type Priority = "low" | "medium" | "high" | "critical";
 export type AgentStatus = "idle" | "working" | "error" | "offline";
@@ -33,6 +35,9 @@ export const tasks = sqliteTable("tasks", {
   architecture: text("architecture"), // written by architect
   reviewCycles: integer("review_cycles").notNull().default(0),
   approvalComment: text("approval_comment"),
+  approvalType: text("approval_type"),
+  approvalReason: text("approval_reason"),
+  approvedBy: text("approved_by"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
