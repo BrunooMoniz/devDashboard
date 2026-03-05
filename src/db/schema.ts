@@ -69,7 +69,7 @@ export const chatMessages = sqliteTable("chat_messages", {
   direction: text("direction").notNull().default("user"), // "user" | "agent"
   content: text("content").notNull(),
   read: integer("read").notNull().default(0),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  createdAt: text("created_at").notNull(), // ISO 8601 string (e.g. "2026-03-05T22:43:00.000Z")
 });
 
 export const logs = sqliteTable("logs", {

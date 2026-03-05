@@ -50,6 +50,11 @@ async function initDB() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_ping DATETIME DEFAULT CURRENT_TIMESTAMP
     )`,
+    // BUG 3 fix: migrate chat_messages.created_at from integer to text ISO strings
+    // SQLite allows storing TEXT in INTEGER columns (dynamic typing), no DDL change needed.
+    // Fix existing rows that have millisecond timestamps stored as integers (year +58146):
+    `UPDATE chat_messages SET created_at = datetime(CAST(created_at AS INTEGER) / 1000, 'unixepoch') || 'Z'
+      WHERE CAST(created_at AS INTEGER) > 9999999999`,
   ];
   for (const sql of migrations) {
     try { await client.execute(sql); } catch {}

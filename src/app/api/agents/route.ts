@@ -3,9 +3,25 @@ import { db, ensureDB } from "@/db";
 import { agents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+const GHOST_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutos
+
 export async function GET() {
   await ensureDB();
   const all = await db.select().from(agents);
+
+  // Auto-reset ghost "working" agents (lastSeen > 30 min ago)
+  const now = Date.now();
+  for (const agent of all) {
+    if (agent.status === "working" && agent.lastSeen) {
+      const lastSeenMs = new Date(agent.lastSeen).getTime();
+      if (now - lastSeenMs > GHOST_THRESHOLD_MS) {
+        await db.update(agents).set({ status: "idle", currentTask: null })
+          .where(eq(agents.id, agent.id));
+        agent.status = "idle";
+        agent.currentTask = null;
+      }
+    }
+  }
 
   // Add virtual "moniz" agent if not already in DB
   const hasMoniz = all.some((a) => a.id === "moniz");

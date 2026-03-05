@@ -22,7 +22,7 @@ export async function GET() {
     label: agent.name,
     role: agent.role,
     emoji: agent.emoji ?? "🤖",
-    status: agent.status,
+    status: agent.status ?? "idle",
     model: agent.model ?? "claude-sonnet-4-6",
     currentTask: agent.currentTask ?? null,
     lastSeen: agent.lastSeen,
@@ -43,7 +43,7 @@ export async function GET() {
   };
 
   const activeEdges = allTasks
-    .filter((t) => t.status === "in_progress" && t.assignedAgent)
+    .filter((t) => t.status === "in_progress" && t.assignedAgent && t.assignedAgent !== getSource(t))
     .map((t, i) => ({
       id: `active-${i}`,
       source: getSource(t),
@@ -58,6 +58,7 @@ export async function GET() {
   const recentEdges = allTasks
     .filter((t) => {
       if (t.status !== "done" || !t.assignedAgent) return false;
+      if (t.assignedAgent === getSource(t)) return false;
       const updated = new Date(t.updatedAt).getTime();
       return now - updated < TWO_HOURS;
     })
@@ -74,7 +75,7 @@ export async function GET() {
 
   // Tasks planeadas (todo ou backlog com assignedAgent)
   const plannedEdges = allTasks
-    .filter((t) => (t.status === "todo" || t.status === "backlog") && t.assignedAgent)
+    .filter((t) => (t.status === "todo" || t.status === "backlog") && t.assignedAgent && t.assignedAgent !== getSource(t))
     .map((t, i) => ({
       id: `planned-${i}`,
       source: getSource(t),

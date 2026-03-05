@@ -16,7 +16,7 @@ export async function GET(
     .where(eq(chatMessages.agentId, id));
 
   const sorted = all.sort(
-    (a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)
+    (a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
   );
   return NextResponse.json(sorted);
 }
@@ -40,7 +40,7 @@ export async function POST(
     direction: direction ?? "user",
     content: content.trim(),
     read: 0,
-    createdAt: new Date(),
+    createdAt: new Date().toISOString(),
   };
 
   await db.insert(chatMessages).values(msg);
