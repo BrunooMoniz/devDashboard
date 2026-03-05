@@ -79,7 +79,7 @@ function DetailPane({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden min-h-0">
       {/* Card header */}
       <div className="shrink-0 px-5 pt-4 pb-3 border-b">
         {title && <div className="mb-2">{title}</div>}
@@ -118,7 +118,7 @@ function DetailPane({
       </div>
 
       {/* Scrollable body */}
-      <ScrollArea className="flex-1 px-5">
+      <ScrollArea className="flex-1 min-h-0 px-5">
         <div className="space-y-4 py-4">
           {detail.description && (
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -376,7 +376,7 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
 
           {/* Corpo scrollável */}
           {detail && (
-            <ScrollArea className="flex-1 px-5">
+            <ScrollArea className="flex-1 min-h-0 px-5">
               <div className="space-y-4 py-4">
                 {detail.description && (
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap">{detail.description}</p>
