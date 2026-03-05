@@ -1,0 +1,19 @@
+services:
+  dev-dashboard:
+    build: .
+    container_name: dev-dashboard
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/dashboard.db
+    volumes:
+      - dashboard-data:/app/data
+    networks:
+      - vps-net
+
+volumes:
+  dashboard-data:
+
+networks:
+  vps-net:
+    external: true
