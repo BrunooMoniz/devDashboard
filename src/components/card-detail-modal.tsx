@@ -301,10 +301,9 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
         <DialogContent
           className={`
             flex flex-col gap-0 p-0 overflow-hidden
-            transition-all duration-300
+            transition-all duration-300 h-[85vh]
             ${hasSub ? "max-w-5xl" : "max-w-2xl"}
           `}
-          style={{ maxHeight: "90vh" }}
         >
           {/* ── Danger zone header ── */}
           <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b shrink-0">
@@ -364,7 +363,7 @@ export function CardDetailModal({ taskId, onClose, onRefresh }: Props) {
           </div>
 
           {/* ── Corpo split ── */}
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-1 min-h-0 overflow-hidden">
 
             {/* Painel esquerdo — task principal */}
             <div className={`flex flex-col min-h-0 px-5 py-4 ${hasSub ? "w-[45%] border-r" : "w-full"}`}>
