@@ -61,6 +61,8 @@ export function AgentsPanel() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const lastUserMsgTime = useRef<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch agents
@@ -104,15 +106,30 @@ export function AgentsPanel() {
   // Fetch chat messages when dialog opens
   useEffect(() => {
     if (!chatOpen) return;
+    setTyping(false);
+    lastUserMsgTime.current = 0;
     const fetch_ = async () => {
       try {
         const res = await fetch(`/api/agents/${chatOpen.id}/messages`);
-        if (res.ok) setMessages(await res.json());
+        if (!res.ok) return;
+        const msgs: ChatMsg[] = await res.json();
+        setMessages(msgs);
+        // Se a última mensagem é do user e ainda não há resposta do agente depois → typing
+        if (msgs.length > 0) {
+          const last = msgs[msgs.length - 1];
+          const lastAgentIdx = [...msgs].reverse().findIndex((m) => m.direction === "agent");
+          const lastUserIdx = [...msgs].reverse().findIndex((m) => m.direction === "user");
+          if (lastUserIdx !== -1 && (lastAgentIdx === -1 || lastUserIdx < lastAgentIdx)) {
+            setTyping(true);
+          } else {
+            setTyping(false);
+          }
+        }
       } catch {}
     };
     fetch_();
-    const i = setInterval(fetch_, 3000);
-    return () => clearInterval(i);
+    const i = setInterval(fetch_, 2500);
+    return () => { clearInterval(i); setTyping(false); };
   }, [chatOpen]);
 
   // Auto-scroll chat
@@ -133,6 +150,8 @@ export function AgentsPanel() {
         const msg = await res.json();
         setMessages((prev) => [...prev, msg]);
         setInput("");
+        setTyping(true); // mostra typing imediatamente após enviar
+        lastUserMsgTime.current = Date.now();
       }
     } finally {
       setSending(false);
@@ -292,6 +311,28 @@ export function AgentsPanel() {
                     </div>
                   </div>
                 ))}
+                {/* Typing indicator */}
+                {typing && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-xl px-4 py-3 flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground mr-1">
+                        {chatOpen?.name} está a pensar
+                      </span>
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
+                        style={{ animationDelay: "0ms" }}
+                      />
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
+                        style={{ animationDelay: "150ms" }}
+                      />
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
+                        style={{ animationDelay: "300ms" }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div ref={messagesEndRef} />
               </div>
             )}
