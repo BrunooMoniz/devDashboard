@@ -72,15 +72,24 @@ interface FlowData {
 // Reviewer x:150  y:740  QA x:500  y:740  DevOps x:850  y:740
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
-  moniz:     { x: 600, y: -220 }, // Moniz — Product Owner, above Atlas
-  main:      { x: 600, y:    0 }, // Atlas
-  pm:        { x: 600, y:  220 }, // Iris
-  architect: { x: 600, y:  420 }, // Orion
-  frontend:  { x: 300, y:  620 }, // Pixel
-  backend:   { x: 900, y:  620 }, // Forge
-  reviewer:  { x: 150, y:  840 }, // Argus
-  qa:        { x: 600, y:  840 }, // Lyra
-  devops:    { x: 1050, y: 840 }, // Vega
+  //  Organograma em árvore — sem sobreposição de setas
+  //
+  //              👤 Moniz
+  //              🧠 Atlas
+  //         /              \
+  //   📋 Iris           🏗 Orion
+  //   /      \           /    \
+  // 🎨Pixel  ⚙️Forge   🛡Argus  🔍Lyra   🚀Vega
+  //
+  moniz:     { x: 700, y:    0 }, // topo
+  main:      { x: 700, y:  200 }, // Atlas abaixo de Moniz
+  pm:        { x: 300, y:  420 }, // Iris — lado esquerdo
+  architect: { x: 1100, y: 420 }, // Orion — lado direito
+  frontend:  { x: 100, y:  640 }, // Pixel — baixo esquerdo de Iris
+  backend:   { x: 500, y:  640 }, // Forge — baixo direito de Iris
+  reviewer:  { x: 900, y:  640 }, // Argus — baixo esquerdo de Orion
+  qa:        { x: 700, y:  860 }, // Lyra — centro baixo
+  devops:    { x: 1100, y: 640 }, // Vega — baixo direito de Orion
 };
 
 function getPosition(id: string, index: number): { x: number; y: number } {
@@ -249,7 +258,7 @@ function AgentNode({ data }: NodeProps) {
 
 function ActiveEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd, data, style } = props;
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, curvature: 0.4 });
   const eData = data as unknown as FlowEdgeData | undefined;
   const displayLabel = label ? shortLabel(label as string, eData?.priority) : undefined;
   const customColor = (style as any)?.stroke ?? "#6366f1";
@@ -293,7 +302,7 @@ function ActiveEdge(props: EdgeProps) {
 
 function RecentEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd } = props;
-  const [edgePath] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [edgePath] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, curvature: 0.4 });
 
   return (
     <BaseEdge
@@ -310,7 +319,7 @@ function RecentEdge(props: EdgeProps) {
 
 function PlannedEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, label, style } = props;
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, curvature: 0.4 });
   const customColor = (style as any)?.stroke ?? "#94a3b8";
   const customWidth = (style as any)?.strokeWidth ?? 1.5;
   const displayLabel = label ? shortLabel(label as string, undefined) : undefined;
