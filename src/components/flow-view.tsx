@@ -72,15 +72,15 @@ interface FlowData {
 // Reviewer x:150  y:740  QA x:500  y:740  DevOps x:850  y:740
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
-  moniz:     { x: 500, y: -180 }, // Moniz — Product Owner, above Atlas
-  main:      { x: 500, y:   0 },  // Atlas
-  pm:        { x: 500, y: 200 },  // Iris
-  architect: { x: 500, y: 380 },  // Orion
-  frontend:  { x: 250, y: 560 },  // Pixel
-  backend:   { x: 750, y: 560 },  // Forge
-  reviewer:  { x: 150, y: 740 },
-  qa:        { x: 500, y: 740 },
-  devops:    { x: 850, y: 740 },
+  moniz:     { x: 600, y: -220 }, // Moniz — Product Owner, above Atlas
+  main:      { x: 600, y:    0 }, // Atlas
+  pm:        { x: 600, y:  220 }, // Iris
+  architect: { x: 600, y:  420 }, // Orion
+  frontend:  { x: 300, y:  620 }, // Pixel
+  backend:   { x: 900, y:  620 }, // Forge
+  reviewer:  { x: 150, y:  840 }, // Argus
+  qa:        { x: 600, y:  840 }, // Lyra
+  devops:    { x: 1050, y: 840 }, // Vega
 };
 
 function getPosition(id: string, index: number): { x: number; y: number } {
@@ -157,7 +157,7 @@ function AgentNode({ data }: NodeProps) {
   return (
     <div
       style={{
-        width: 200,
+        width: 220,
         minHeight: 120,
         background: bgColor,
         borderRadius: 12,

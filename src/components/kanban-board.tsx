@@ -17,7 +17,10 @@ import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, AlertCircle, GripVertical } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Plus, AlertCircle, GripVertical, X, Clock } from "lucide-react";
 import {
   Task, TaskStatus, COLUMNS, PRIORITY_VARIANTS, PRIORITY_ICONS, AGENT_INFO, getTags, timeAgo,
   Agent,
@@ -240,6 +243,108 @@ function KanbanColumn({
   );
 }
 
+// ─── Filter Bar ─────────────────────────────────────────────────────────────
+
+function KanbanFilterBar({
+  agents,
+  activeAgents,
+  setActiveAgents,
+  activePriority,
+  setActivePriority,
+  localApproval,
+  setLocalApproval,
+}: {
+  agents: Agent[];
+  activeAgents: string[];
+  setActiveAgents: (v: string[]) => void;
+  activePriority: string;
+  setActivePriority: (v: string) => void;
+  localApproval: boolean;
+  setLocalApproval: (v: boolean) => void;
+}) {
+  const hasFilter = activeAgents.length > 0 || activePriority !== "" || localApproval;
+
+  const toggleAgent = (id: string) => {
+    setActiveAgents(
+      activeAgents.includes(id)
+        ? activeAgents.filter(a => a !== id)
+        : [...activeAgents, id]
+    );
+  };
+
+  const clear = () => {
+    setActiveAgents([]);
+    setActivePriority("");
+    setLocalApproval(false);
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-muted/40 rounded-lg border">
+      {/* Agent chips */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {agents.filter(a => a.id !== "moniz").map(agent => {
+          const isActive = activeAgents.includes(agent.id);
+          return (
+            <button
+              key={agent.id}
+              onClick={() => toggleAgent(agent.id)}
+              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-all font-medium ${
+                isActive
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-primary/50 hover:text-foreground"
+              }`}
+            >
+              <span>{agent.emoji ?? "🤖"}</span>
+              <span>{agent.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Divider */}
+      {agents.length > 0 && <div className="h-5 w-px bg-border" />}
+
+      {/* Priority dropdown */}
+      <Select value={activePriority || "all"} onValueChange={v => setActivePriority(v === "all" ? "" : v)}>
+        <SelectTrigger className="h-7 text-xs w-36 bg-background">
+          <SelectValue placeholder="Prioridade" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas as prioridades</SelectItem>
+          <SelectItem value="critical">🔴 Crítica</SelectItem>
+          <SelectItem value="high">🟠 Alta</SelectItem>
+          <SelectItem value="medium">🟡 Média</SelectItem>
+          <SelectItem value="low">🟢 Baixa</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* Approval filter */}
+      <button
+        onClick={() => setLocalApproval(!localApproval)}
+        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all font-medium ${
+          localApproval
+            ? "bg-yellow-100 text-yellow-800 border-yellow-400 shadow-sm"
+            : "bg-background text-muted-foreground border-muted-foreground/30 hover:border-yellow-400/50 hover:text-foreground"
+        }`}
+      >
+        <Clock className="w-3 h-3" />
+        <span>Minha Aprovação</span>
+      </button>
+
+      {/* Clear */}
+      {hasFilter && (
+        <button
+          onClick={clear}
+          className="flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 transition-all font-medium"
+        >
+          <X className="w-3 h-3" />
+          <span>Limpar</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Board ──────────────────────────────────────────────────────────────
 
 export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
@@ -251,6 +356,11 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
+
+  // Filter state
+  const [activeAgents, setActiveAgents] = useState<string[]>([]);
+  const [activePriority, setActivePriority] = useState<string>("");
+  const [localApproval, setLocalApproval] = useState(false);
 
   // Optimistic local override: taskId → status
   const optimistic = useRef<Record<string, TaskStatus>>({});
@@ -311,9 +421,19 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
   );
 
   const byStatus = (status: string) => {
-    // If approval filter is active, only show tasks in the filtered column, all others empty
+    // External approval filter (from page header)
     if (filterStatus && status !== filterStatus) return [];
-    return effectiveTasks.filter((t) => t.status === status);
+    // Local approval filter button
+    if (localApproval && status !== "waiting_approval") return [];
+
+    return effectiveTasks.filter((t) => {
+      if (t.status !== status) return false;
+      // Agent filter
+      if (activeAgents.length > 0 && (!t.assignedAgent || !activeAgents.includes(t.assignedAgent))) return false;
+      // Priority filter
+      if (activePriority && t.priority !== activePriority) return false;
+      return true;
+    });
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -357,7 +477,7 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-muted-foreground">
           {tasks.length} card{tasks.length !== 1 ? "s" : ""} no board
           {movingId && (
@@ -368,6 +488,16 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
           <Plus className="w-4 h-4 mr-1" /> Novo Card
         </Button>
       </div>
+
+      <KanbanFilterBar
+        agents={agents}
+        activeAgents={activeAgents}
+        setActiveAgents={setActiveAgents}
+        activePriority={activePriority}
+        setActivePriority={setActivePriority}
+        localApproval={localApproval}
+        setLocalApproval={setLocalApproval}
+      />
 
       <DndContext
         sensors={sensors}

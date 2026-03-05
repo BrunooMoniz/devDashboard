@@ -42,6 +42,14 @@ async function initDB() {
       read INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     )`,
+    `CREATE TABLE IF NOT EXISTS agent_sessions (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      session_key TEXT NOT NULL,
+      status TEXT DEFAULT 'active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_ping DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
   ];
   for (const sql of migrations) {
     try { await client.execute(sql); } catch {}

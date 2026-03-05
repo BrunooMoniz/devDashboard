@@ -6,6 +6,7 @@ import { KanbanBoard } from "@/components/kanban-board";
 import { AgentsPanel } from "@/components/agents-panel";
 import { LogsPanel } from "@/components/logs-panel";
 import { FlowView } from "@/components/flow-view";
+import { FloatingChat } from "@/components/floating-chat";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 
@@ -101,6 +102,9 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Floating Atlas chat — visible on all tabs */}
+      <FloatingChat />
     </main>
   );
 }
