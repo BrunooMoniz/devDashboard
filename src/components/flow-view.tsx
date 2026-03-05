@@ -68,22 +68,22 @@ interface FlowData {
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
-  main:      { x: 420, y: 230 },
-  pm:        { x: 140, y:  50 },
-  architect: { x: 700, y:  50 },
-  frontend:  { x:  50, y: 270 },
-  backend:   { x: 790, y: 270 },
-  devops:    { x: 140, y: 450 },
-  qa:        { x: 700, y: 450 },
-  reviewer:  { x: 420, y: 490 },
+  main:      { x: 600, y:  50 },
+  pm:        { x:  50, y: 280 },
+  architect: { x: 220, y: 280 },
+  frontend:  { x: 390, y: 280 },
+  backend:   { x: 560, y: 280 },
+  devops:    { x: 730, y: 280 },
+  qa:        { x: 900, y: 280 },
+  reviewer:  { x: 1070, y: 280 },
 };
 
 function getPosition(id: string, index: number, total: number) {
   if (AGENT_POSITIONS[id]) return AGENT_POSITIONS[id];
-  const angle = (index / total) * 2 * Math.PI - Math.PI / 2;
+  // Fallback: place unknown agents in the bottom row
   return {
-    x: 420 + Math.cos(angle) * 320,
-    y: 260 + Math.sin(angle) * 210,
+    x: 50 + index * 170,
+    y: 280,
   };
 }
 
