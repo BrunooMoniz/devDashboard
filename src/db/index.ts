@@ -27,6 +27,16 @@ const AGENTS = [
 let initPromise: Promise<void> | null = null;
 
 async function initDB() {
+  // ── WAL mode + performance pragmas ────────────────────────────────────────
+  // WAL (Write-Ahead Logging) permite leituras e escritas simultâneas sem
+  // bloquear o banco. Crítico para múltiplos agentes operando em paralelo.
+  // synchronous=NORMAL oferece boa durabilidade sem o custo de FULL.
+  // busy_timeout=5000ms evita erros "database is locked" em picos de escrita.
+  await client.execute("PRAGMA journal_mode = WAL;");
+  await client.execute("PRAGMA synchronous = NORMAL;");
+  await client.execute("PRAGMA busy_timeout = 5000;");
+  await client.execute("PRAGMA cache_size = -8000;"); // 8 MB de cache em memória
+
   // Migrations para colunas adicionadas depois do deploy inicial
   const migrations = [
     "ALTER TABLE agents ADD COLUMN emoji TEXT DEFAULT '🤖'",
@@ -110,6 +120,7 @@ async function initDB() {
 
   // SQLite indexes for performance
   try { await client.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)"); } catch {}
+  try { await client.execute("CREATE INDEX IF NOT EXISTS idx_tasks_updated ON tasks(updated_at)"); } catch {}
   try { await client.execute("CREATE INDEX IF NOT EXISTS idx_logs_agent ON logs(agent_id)"); } catch {}
   try { await client.execute("CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)"); } catch {}
   try { await client.execute("CREATE INDEX IF NOT EXISTS idx_chat_agent ON chat_messages(agent_id)"); } catch {}
