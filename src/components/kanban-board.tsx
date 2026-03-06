@@ -415,8 +415,8 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
   useEffect(() => {
     fetchTasks();
     fetchAgents();
-    const i = setInterval(fetchTasks, 5000);
-    const j = setInterval(fetchAgents, 15000);
+    const i = setInterval(fetchTasks, 2000);
+    const j = setInterval(fetchAgents, 5000);
     return () => { clearInterval(i); clearInterval(j); };
   }, []);
 

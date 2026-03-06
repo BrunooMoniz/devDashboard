@@ -7,6 +7,7 @@ import { AgentsPanel } from "@/components/agents-panel";
 import { LogsPanel } from "@/components/logs-panel";
 import { FlowView } from "@/components/flow-view";
 import { FloatingChat } from "@/components/floating-chat";
+import { TeamChat } from "@/components/team-chat";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 
@@ -22,7 +23,7 @@ export default function Home() {
       setPendingCount(data.count ?? 0);
     };
     fetch_();
-    const i = setInterval(fetch_, 5000);
+    const i = setInterval(fetch_, 2000);
     return () => clearInterval(i);
   }, []);
 
@@ -83,6 +84,7 @@ export default function Home() {
             <TabsTrigger value="agents">Agentes</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="fluxo">🔀 Fluxo</TabsTrigger>
+            <TabsTrigger value="time">💬 Time</TabsTrigger>
           </TabsList>
 
           <TabsContent value="kanban">
@@ -99,6 +101,10 @@ export default function Home() {
 
           <TabsContent value="fluxo">
             <FlowView />
+          </TabsContent>
+
+          <TabsContent value="time">
+            <TeamChat />
           </TabsContent>
         </Tabs>
       </div>

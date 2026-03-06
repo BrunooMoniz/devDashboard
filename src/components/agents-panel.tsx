@@ -81,6 +81,7 @@ export function AgentsPanel() {
   const [monizCreated, setMonizCreated] = useState(0);
   const [monizApprovals, setMonizApprovals] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Fetch agents
@@ -145,9 +146,12 @@ export function AgentsPanel() {
     }
   }, [chatOpen?.id]);
 
-  // Auto-scroll
+  // Auto-scroll — usa o container directamente (ScrollArea usa viewport interno)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages, streamingContent]);
 
   const changeModel = async (agentId: string, model: string) => {
@@ -445,7 +449,7 @@ export function AgentsPanel() {
               </DialogTitle>
             </DialogHeader>
 
-            <ScrollArea className="flex-1 px-4 py-3">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-3">
               {messages.length === 0 && streamingContent === null ? (
                 <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
                   Nenhuma mensagem. Diz olá!
@@ -495,7 +499,7 @@ export function AgentsPanel() {
                   <div ref={messagesEndRef} />
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
             <div className="px-4 py-3 border-t shrink-0">
               <div className="flex gap-2">

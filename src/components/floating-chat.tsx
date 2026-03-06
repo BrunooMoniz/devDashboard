@@ -35,6 +35,7 @@ export function FloatingChat() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -47,9 +48,10 @@ export function FloatingChat() {
     }
   }, [open]);
 
-  // Auto-scroll
+  // Auto-scroll — scroll directo no container, não scrollIntoView
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages, streamingContent]);
 
   const sendMessage = async () => {
@@ -204,7 +206,7 @@ export function FloatingChat() {
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 px-3 py-2">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-2">
             {messages.length === 0 && streamingContent === null ? (
               <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
                 <span className="text-3xl">{AGENT_EMOJI}</span>
@@ -257,7 +259,7 @@ export function FloatingChat() {
                 <div ref={messagesEndRef} />
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Input */}
           <div className="px-3 py-2.5 border-t shrink-0">
