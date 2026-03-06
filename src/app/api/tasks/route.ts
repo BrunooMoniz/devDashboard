@@ -3,6 +3,7 @@ import { db, ensureDB } from "@/db";
 import { tasks, taskComments } from "@/db/schema";
 import { eq, isNull, inArray } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { dashboardEvents } from "@/lib/dashboard-events";
 
 export async function GET(req: NextRequest) {
   await ensureDB();
@@ -56,6 +57,9 @@ export async function POST(req: NextRequest) {
     architecture: null,
     reviewCycles: 0,
     approvalComment: null,
+    approvalType: null,
+    approvalReason: null,
+    approvedBy: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -74,6 +78,9 @@ export async function POST(req: NextRequest) {
       createdAt: now,
     });
   }
+
+  // Notificar clientes SSE conectados sobre a nova task
+  dashboardEvents.emit("task_created", task as any);
 
   return NextResponse.json(task, { status: 201 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, ensureDB } from "@/db";
 import { agents } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
+import { dashboardEvents } from "@/lib/dashboard-events";
 
 const GHOST_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutos
 
@@ -24,6 +25,8 @@ export async function GET() {
       if (ghostIds.includes(agent.id)) {
         agent.status = "idle";
         agent.currentTask = null;
+        // Notificar SSE sobre cada agente resetado
+        dashboardEvents.emit("agent_updated", agent as any);
       }
     }
   }
@@ -64,5 +67,11 @@ export async function PATCH(req: NextRequest) {
   }).where(eq(agents.id, id));
 
   const updated = await db.select().from(agents).where(eq(agents.id, id));
+
+  // Notificar clientes SSE conectados sobre o agente atualizado
+  if (updated[0]) {
+    dashboardEvents.emit("agent_updated", updated[0] as any);
+  }
+
   return NextResponse.json(updated[0]);
 }
