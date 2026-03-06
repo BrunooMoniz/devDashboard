@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, ensureDB } from "@/db";
 import { agents, tasks, logs } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, desc } from "drizzle-orm";
 
 export async function GET() {
   await ensureDB();
@@ -11,7 +11,7 @@ export async function GET() {
   const [allAgents, allTasks, recentLogs] = await Promise.all([
     db.select().from(agents),
     db.select().from(tasks),
-    db.select().from(logs),
+    db.select().from(logs).orderBy(desc(logs.createdAt)).limit(100),
   ]);
 
   const now = Date.now();

@@ -361,6 +361,7 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
   const [activeAgents, setActiveAgents] = useState<string[]>([]);
   const [activePriority, setActivePriority] = useState<string>("");
   const [localApproval, setLocalApproval] = useState(false);
+  const [searchText, setSearchText] = useState<string>("");
 
   // Optimistic local override: taskId → status
   const optimistic = useRef<Record<string, TaskStatus>>({});
@@ -426,12 +427,20 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
     // Local approval filter button
     if (localApproval && status !== "waiting_approval") return [];
 
+    const query = searchText.trim().toLowerCase();
+
     return effectiveTasks.filter((t) => {
       if (t.status !== status) return false;
       // Agent filter
       if (activeAgents.length > 0 && (!t.assignedAgent || !activeAgents.includes(t.assignedAgent))) return false;
       // Priority filter
       if (activePriority && t.priority !== activePriority) return false;
+      // Search filter (título ou descrição, case-insensitive)
+      if (query) {
+        const inTitle = t.title?.toLowerCase().includes(query);
+        const inDesc  = t.description?.toLowerCase().includes(query);
+        if (!inTitle && !inDesc) return false;
+      }
       return true;
     });
   };
@@ -487,6 +496,17 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
         <Button onClick={() => setShowCreate(true)} size="sm">
           <Plus className="w-4 h-4 mr-1" /> Novo Card
         </Button>
+      </div>
+
+      {/* Pesquisa de texto */}
+      <div className="mb-2">
+        <input
+          type="text"
+          placeholder="🔍 Pesquisar cards..."
+          className="w-full text-sm px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60 transition-all"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+        />
       </div>
 
       <KanbanFilterBar

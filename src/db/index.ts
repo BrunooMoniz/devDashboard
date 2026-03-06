@@ -108,6 +108,12 @@ async function initDB() {
     );
   `);
 
+  // SQLite indexes for performance
+  try { await client.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)"); } catch {}
+  try { await client.execute("CREATE INDEX IF NOT EXISTS idx_logs_agent ON logs(agent_id)"); } catch {}
+  try { await client.execute("CREATE INDEX IF NOT EXISTS idx_logs_created ON logs(created_at)"); } catch {}
+  try { await client.execute("CREATE INDEX IF NOT EXISTS idx_chat_agent ON chat_messages(agent_id)"); } catch {}
+
   // Seed agents
   const result = await client.execute("SELECT COUNT(*) as c FROM agents");
   const count = Number(result.rows[0]?.c ?? 0);

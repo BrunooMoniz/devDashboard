@@ -16,6 +16,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
+  getSmoothStepPath,
   type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -374,8 +375,215 @@ function PlannedEdge(props: EdgeProps) {
   );
 }
 
+// ─── Static Idle Edges ────────────────────────────────────────────────────────
+// Mostrados quando a API retorna 0 edges (sistema idle)
+
+const STATIC_IDLE_EDGES: Edge[] = [
+  // Moniz → Atlas (active, amber)
+  {
+    id: "idle-moniz-main",
+    source: "moniz",
+    target: "main",
+    label: "delega",
+    type: "active",
+    animated: true,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
+    style: { stroke: "#f59e0b", strokeWidth: 3 },
+    data: {} as Record<string, unknown>,
+  },
+  // Atlas → Iris (planned, cinza)
+  {
+    id: "idle-main-pm",
+    source: "main",
+    target: "pm",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Atlas → Orion (planned, cinza)
+  {
+    id: "idle-main-architect",
+    source: "main",
+    target: "architect",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Iris → Pixel (planned, cinza)
+  {
+    id: "idle-pm-frontend",
+    source: "pm",
+    target: "frontend",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Iris → Forge (planned, cinza)
+  {
+    id: "idle-pm-backend",
+    source: "pm",
+    target: "backend",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Orion → Pixel (planned, cinza)
+  {
+    id: "idle-architect-frontend",
+    source: "architect",
+    target: "frontend",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Orion → Forge (planned, cinza)
+  {
+    id: "idle-architect-backend",
+    source: "architect",
+    target: "backend",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Pixel → Argus (planned, cinza)
+  {
+    id: "idle-frontend-reviewer",
+    source: "frontend",
+    target: "reviewer",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Forge → Argus (planned, cinza)
+  {
+    id: "idle-backend-reviewer",
+    source: "backend",
+    target: "reviewer",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Argus → Lyra (planned, cinza)
+  {
+    id: "idle-reviewer-qa",
+    source: "reviewer",
+    target: "qa",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+  // Lyra → Vega (planned, cinza)
+  {
+    id: "idle-qa-devops",
+    source: "qa",
+    target: "devops",
+    type: "planned",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#94a3b8", width: 18, height: 18 },
+    data: {} as Record<string, unknown>,
+  },
+];
+
+// ─── Rejection Edges (lateral esquerda) ──────────────────────────────────────
+// Overlay estático sempre visível: Argus→Pixel e Lyra→Pixel pela lateral
+
+const REJECTION_OVERLAY_EDGES: Edge[] = [
+  // Argus → Pixel (rejeição, vermelho)
+  {
+    id: "reject-reviewer-frontend",
+    source: "reviewer",
+    target: "frontend",
+    sourceHandle: "left",
+    targetHandle: "left",
+    label: "🔴 rejeição",
+    type: "rejection",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#ef4444", width: 16, height: 16 },
+    data: { color: "#ef4444", dash: "8,4" } as Record<string, unknown>,
+  },
+  // Lyra → Pixel (re-test, laranja)
+  {
+    id: "retest-qa-frontend",
+    source: "qa",
+    target: "frontend",
+    sourceHandle: "left",
+    targetHandle: "left",
+    label: "🟠 re-test",
+    type: "rejection",
+    animated: false,
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#f97316", width: 16, height: 16 },
+    data: { color: "#f97316", dash: "8,4" } as Record<string, unknown>,
+  },
+];
+
+// ─── Rejection Edge Component ─────────────────────────────────────────────────
+
+function RejectionEdge(props: EdgeProps) {
+  const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, label, markerEnd, data } = props;
+  const eData = data as { color?: string; dash?: string } | undefined;
+  const color = eData?.color ?? "#ef4444";
+  const dash = eData?.dash ?? "8,4";
+
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: 20,
+    offset: 80,
+  });
+
+  return (
+    <>
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          stroke: color,
+          strokeWidth: 2,
+          strokeDasharray: dash,
+          opacity: 0.85,
+        }}
+      />
+      {label && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              position: "absolute",
+              pointerEvents: "none",
+              padding: "2px 7px",
+              borderRadius: 4,
+              fontSize: 10,
+              fontWeight: 600,
+              background: "rgba(255,255,255,0.95)",
+              color,
+              border: `1px solid ${color}60`,
+              whiteSpace: "nowrap",
+            }}
+            className="nodrag nopan"
+          >
+            {label as string}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
 const nodeTypes = { agent: AgentNode };
-const edgeTypes = { active: ActiveEdge, recent: RecentEdge, planned: PlannedEdge };
+const edgeTypes = { active: ActiveEdge, recent: RecentEdge, planned: PlannedEdge, rejection: RejectionEdge };
 
 // ─── Converters ───────────────────────────────────────────────────────────────
 
@@ -538,38 +746,52 @@ export function FlowView() {
       const data: FlowData = await res.json();
 
       const rfNodes = toRFNodes(data.nodes ?? [], data.agentActivity ?? {});
-      const rfEdges = toRFEdges(data.edges ?? []);
+      const rawEdges = data.edges ?? [];
 
-      // Inject Moniz ↔ Atlas edges if not already present
-      const hasMonizAtlas = rfEdges.find((e) => e.source === "moniz" && e.target === "main");
-      const hasAtlasMoniz = rfEdges.find((e) => e.source === "main" && e.target === "moniz");
+      // Feature 1: se não há edges reais (sistema idle), usa estrutura estática
+      let rfEdges: Edge[];
+      if (rawEdges.length === 0) {
+        rfEdges = [...STATIC_IDLE_EDGES];
+      } else {
+        rfEdges = toRFEdges(rawEdges);
 
-      if (!hasMonizAtlas) {
-        rfEdges.push({
-          id: "moniz-to-main",
-          source: "moniz",
-          target: "main",
-          label: "delega",
-          type: "active",
-          animated: true,
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
-          style: { stroke: "#f59e0b", strokeWidth: 3 },
-          data: {} as Record<string, unknown>,
-        });
+        // Inject Moniz ↔ Atlas edges if not already present (só com edges reais)
+        const hasMonizAtlas = rfEdges.find((e) => e.source === "moniz" && e.target === "main");
+        const hasAtlasMoniz = rfEdges.find((e) => e.source === "main" && e.target === "moniz");
+
+        if (!hasMonizAtlas) {
+          rfEdges.push({
+            id: "moniz-to-main",
+            source: "moniz",
+            target: "main",
+            label: "delega",
+            type: "active",
+            animated: true,
+            markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
+            style: { stroke: "#f59e0b", strokeWidth: 3 },
+            data: {} as Record<string, unknown>,
+          });
+        }
+        if (!hasAtlasMoniz) {
+          rfEdges.push({
+            id: "main-to-moniz",
+            source: "main",
+            target: "moniz",
+            label: "aprovação",
+            type: "planned",
+            animated: false,
+            markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
+            style: { stroke: "#f59e0b", strokeWidth: 2, strokeDasharray: "8,5" },
+            data: {} as Record<string, unknown>,
+          });
+        }
       }
-      if (!hasAtlasMoniz) {
-        rfEdges.push({
-          id: "main-to-moniz",
-          source: "main",
-          target: "moniz",
-          label: "aprovação",
-          type: "planned",
-          animated: false,
-          markerEnd: { type: MarkerType.ArrowClosed, color: "#f59e0b", width: 18, height: 18 },
-          style: { stroke: "#f59e0b", strokeWidth: 2, strokeDasharray: "8,5" },
-          data: {} as Record<string, unknown>,
-        });
-      }
+
+      // Feature 2: adiciona edges de rejeição pela lateral (overlay estático sempre)
+      // Remove duplicates antes de adicionar
+      const rejectionIds = REJECTION_OVERLAY_EDGES.map((e) => e.id);
+      const filteredEdges = rfEdges.filter((e) => !rejectionIds.includes(e.id));
+      rfEdges = [...filteredEdges, ...REJECTION_OVERLAY_EDGES];
 
       setNodes(rfNodes);
       setEdges(rfEdges);
@@ -577,7 +799,6 @@ export function FlowView() {
       if (data.stats) {
         setStats(data.stats);
       } else {
-        const rawEdges = data.edges ?? [];
         setStats({
           active:  rawEdges.filter((e) => resolveEdgeType(e) === "active").length,
           recent:  rawEdges.filter((e) => resolveEdgeType(e) === "recent").length,
