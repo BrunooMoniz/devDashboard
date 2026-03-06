@@ -103,9 +103,15 @@ export const PRIORITY_ICONS: Record<string, string> = {
   low: "🟢",
 };
 
-export function getTags(raw: string | null): string[] {
+export function getTags(raw: string | null | unknown): string[] {
+  // Já é um array — devolve directamente
+  if (Array.isArray(raw)) return raw as string[];
+  if (typeof raw !== "string" || !raw.trim()) return [];
   try {
-    return JSON.parse(raw ?? "[]");
+    let parsed = JSON.parse(raw);
+    // Double-encoded: JSON.parse retornou uma string em vez de array
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }

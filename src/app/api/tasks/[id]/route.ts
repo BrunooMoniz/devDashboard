@@ -42,7 +42,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     ...(status !== undefined && { status }),
     ...(assignedAgent !== undefined && { assignedAgent }),
     ...(priority !== undefined && { priority }),
-    ...(tags !== undefined && { tags: JSON.stringify(tags) }),
+    ...(tags !== undefined && {
+      // Normalizar tags: aceita array ou string JSON, sempre guarda como JSON array
+      tags: JSON.stringify(Array.isArray(tags) ? tags : (() => {
+        try { const p = JSON.parse(tags); return Array.isArray(p) ? p : []; } catch { return []; }
+      })()),
+    }),
     ...(architecture !== undefined && { architecture }),
     ...(reviewCycles !== undefined && { reviewCycles }),
     ...(approvalComment !== undefined && { approvalComment }),
