@@ -371,32 +371,38 @@ export function KanbanBoard({ filterStatus }: { filterStatus?: string }) {
   );
 
   const fetchTasks = async () => {
-    const [rootRes, allRes] = await Promise.all([
-      fetch("/api/tasks?rootOnly=true"),
-      fetch("/api/tasks"),
-    ]);
-    const rootData = await rootRes.json();
-    const allData = await allRes.json();
+    try {
+      const [rootRes, allRes] = await Promise.all([
+        fetch("/api/tasks?rootOnly=true"),
+        fetch("/api/tasks"),
+      ]);
+      const rootData = await rootRes.json();
+      const allData = await allRes.json();
 
-    // Build sub-task count map
-    const counts: Record<string, { total: number; done: number }> = {};
-    for (const t of allData) {
-      if (t.parentId) {
-        if (!counts[t.parentId]) counts[t.parentId] = { total: 0, done: 0 };
-        counts[t.parentId].total++;
-        if (t.status === "done") counts[t.parentId].done++;
+      // Build sub-task count map
+      const counts: Record<string, { total: number; done: number }> = {};
+      for (const t of allData) {
+        if (t.parentId) {
+          if (!counts[t.parentId]) counts[t.parentId] = { total: 0, done: 0 };
+          counts[t.parentId].total++;
+          if (t.status === "done") counts[t.parentId].done++;
+        }
       }
-    }
-    setSubTaskMap(counts);
+      setSubTaskMap(counts);
 
-    // Clear optimistic overrides for tasks that came back from server
-    for (const t of rootData) {
-      if (optimistic.current[t.id] === t.status) {
-        delete optimistic.current[t.id];
+      // Clear optimistic overrides for tasks that came back from server
+      for (const t of rootData) {
+        if (optimistic.current[t.id] === t.status) {
+          delete optimistic.current[t.id];
+        }
       }
+      setTasks(rootData);
+      if (loading) setLoading(false);
+    } catch (err) {
+      console.error("[KanbanBoard] fetchTasks falhou — estado anterior mantido:", err);
+      // Estado anterior mantido; loading termina para não bloquear a UI indefinidamente
+      if (loading) setLoading(false);
     }
-    setTasks(rootData);
-    if (loading) setLoading(false);
   };
 
   const fetchAgents = async () => {

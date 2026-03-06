@@ -36,7 +36,7 @@ export async function GET() {
       name: "Moniz",
       role: "Product Owner",
       emoji: "👤",
-      status: "active" as const,
+      status: "idle" as const,
       model: "human",
       currentTask: null,
       lastSeen: new Date(),

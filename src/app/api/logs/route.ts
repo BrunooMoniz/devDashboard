@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, ensureDB } from "@/db";
 import { logs } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 const DEFAULT_LIMIT = 50;
@@ -16,27 +16,33 @@ export async function GET(req: NextRequest) {
   const withMeta = searchParams.get("withMeta") === "true";
 
   const rawLimit = parseInt(searchParams.get("limit") ?? String(DEFAULT_LIMIT));
-  const limit = Math.min(isNaN(rawLimit) ? DEFAULT_LIMIT : rawLimit, MAX_LIMIT);
+  const limit = Math.max(1, Math.min(isNaN(rawLimit) ? DEFAULT_LIMIT : rawLimit, MAX_LIMIT));
 
   const rawOffset = parseInt(searchParams.get("offset") ?? "0");
-  const offset = isNaN(rawOffset) ? 0 : rawOffset;
+  const offset = Math.max(0, isNaN(rawOffset) ? 0 : rawOffset);
 
-  // Fetch all matching logs (DB-side sort)
-  let all = await db.select().from(logs).orderBy(desc(logs.createdAt));
+  // Build DB-side filters
+  const conditions = [];
+  if (agentId) conditions.push(eq(logs.agentId, agentId));
+  if (level) conditions.push(eq(logs.level, level));
 
-  // Filter in-memory (SQLite via libsql — simple enough for now)
-  if (agentId) all = all.filter((l) => l.agentId === agentId);
-  if (level) all = all.filter((l) => l.level === level);
+  const all = await db.select().from(logs)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(logs.createdAt))
+    .limit(limit)
+    .offset(offset);
 
-  const total = all.length;
-  const sliced = all.slice(offset, offset + limit);
+  // For total/hasMore, count without pagination
+  const allForCount = await db.select().from(logs)
+    .where(conditions.length ? and(...conditions) : undefined);
+  const total = allForCount.length;
   const hasMore = offset + limit < total;
 
   if (withMeta) {
-    return NextResponse.json({ logs: sliced, total, hasMore });
+    return NextResponse.json({ logs: all, total, hasMore });
   }
 
-  return NextResponse.json(sliced);
+  return NextResponse.json(all);
 }
 
 export async function POST(req: NextRequest) {

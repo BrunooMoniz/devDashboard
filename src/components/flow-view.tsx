@@ -203,7 +203,7 @@ function AgentNode({ data }: NodeProps) {
         style={{ background: "#ef4444", width: 7, height: 7, border: "2px solid #f8fafc" }}
       />
       <Handle
-        id="left"
+        id="left-target"
         type="target"
         position={Position.Left}
         style={{ background: "#ef4444", width: 7, height: 7, border: "2px solid #f8fafc" }}
@@ -503,7 +503,7 @@ const REJECTION_OVERLAY_EDGES: Edge[] = [
     source: "reviewer",
     target: "frontend",
     sourceHandle: "left",
-    targetHandle: "left",
+    targetHandle: "left-target",
     label: "🔴 rejeição",
     type: "rejection",
     animated: false,
@@ -516,7 +516,7 @@ const REJECTION_OVERLAY_EDGES: Edge[] = [
     source: "qa",
     target: "frontend",
     sourceHandle: "left",
-    targetHandle: "left",
+    targetHandle: "left-target",
     label: "🟠 re-test",
     type: "rejection",
     animated: false,
