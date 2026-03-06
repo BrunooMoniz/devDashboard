@@ -3,6 +3,7 @@ import { db, ensureDB } from "@/db";
 import { tasks, taskComments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { dashboardEvents } from "@/lib/dashboard-events";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -45,5 +46,11 @@ export async function POST(req: NextRequest, { params }: Params) {
   });
 
   const updated = await db.select().from(tasks).where(eq(tasks.id, id));
+
+  // Notificar clientes SSE conectados sobre a aprovação
+  if (updated[0]) {
+    dashboardEvents.emit("task_updated", updated[0] as any);
+  }
+
   return NextResponse.json(updated[0]);
 }

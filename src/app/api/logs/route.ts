@@ -3,6 +3,7 @@ import { db, ensureDB } from "@/db";
 import { logs } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { dashboardEvents } from "@/lib/dashboard-events";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -64,5 +65,16 @@ export async function POST(req: NextRequest) {
   };
 
   await db.insert(logs).values(log);
+
+  // Notificar clientes SSE conectados sobre o novo log
+  dashboardEvents.emit("log_created", {
+    id: log.id,
+    agentId: log.agentId,
+    level: log.level,
+    message: log.message,
+    metadata: log.metadata,
+    createdAt: log.createdAt.toISOString(),
+  });
+
   return NextResponse.json(log, { status: 201 });
 }

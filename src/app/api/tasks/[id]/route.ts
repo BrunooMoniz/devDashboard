@@ -3,6 +3,7 @@ import { db, ensureDB } from "@/db";
 import { tasks, taskComments } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { dashboardEvents } from "@/lib/dashboard-events";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -94,6 +95,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const updated = await db.select().from(tasks).where(eq(tasks.id, id));
+
+  // Notificar clientes SSE conectados sobre a task atualizada
+  dashboardEvents.emit("task_updated", updated[0] as any);
+
   return NextResponse.json(updated[0]);
 }
 
@@ -102,5 +107,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   await db.delete(taskComments).where(eq(taskComments.taskId, id));
   await db.delete(tasks).where(eq(tasks.id, id));
+
+  // Notificar clientes SSE conectados sobre a remoção
+  dashboardEvents.emit("task_deleted", { id });
+
   return NextResponse.json({ ok: true });
 }
