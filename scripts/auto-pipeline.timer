@@ -1,0 +1,11 @@
+[Unit]
+Description=Dev Dashboard Auto-Pipeline Timer (60s)
+Requires=auto-pipeline.service
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

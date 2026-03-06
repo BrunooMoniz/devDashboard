@@ -1,0 +1,10 @@
+[Unit]
+Description=Dev Dashboard Auto-Pipeline — atribui tasks de backlog à Iris
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/auto-pipeline.sh
+Environment="DASHBOARD_URL=http://172.18.0.3:3000"
+StandardOutput=journal
+StandardError=journal

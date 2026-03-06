@@ -72,28 +72,25 @@ interface FlowData {
 // Reviewer x:150  y:740  QA x:500  y:740  DevOps x:850  y:740
 
 const AGENT_POSITIONS: Record<string, { x: number; y: number }> = {
-  //  Layout em árvore — nós com 220px largura, gap mínimo 60px → passo horizontal 280px
+  //  Layout top-down linear com paralelos lado a lado:
   //
-  //  👤 Moniz (esquerda, topo)
-  //         ↘
-  //           🧠 Atlas (centro)
-  //         ↙          ↘
-  //   📋 Iris          🏗 Orion
-  //   ↙     ↘           ↙      ↘
-  // 🎨Pixel ⚙️Forge   🛡Argus  🚀Vega
-  //             ↘    ↙
-  //            🔍 Lyra
+  //          👤 Moniz       x:600  y:0
+  //          🧠 Atlas       x:600  y:220
+  //    📋 Iris  x:370       🏗 Orion  x:830   y:440
+  //  🎨Pixel x:260          ⚙️Forge x:700     y:660
+  //          👁️ Argus       x:600  y:880
+  //          🔍 Lyra        x:600  y:1100
+  //          🚀 Vega        x:600  y:1320
   //
-  // Largura do nó: 220px. Espaço horizontal mínimo entre centros: 280px.
-  moniz:     { x:  80, y:   0 }, // Moniz — topo esquerda
-  main:      { x: 640, y: 100 }, // Atlas — centro
-  pm:        { x: 200, y: 320 }, // Iris — esquerda
-  architect: { x: 1080, y: 320 }, // Orion — direita
-  frontend:  { x:  20, y: 540 }, // Pixel — extremo esquerdo (filho de Iris)
-  backend:   { x: 380, y: 540 }, // Forge — centro-esquerdo (filho de Iris)
-  reviewer:  { x: 760, y: 540 }, // Argus — centro-direito (filho de Orion)
-  devops:    { x: 1120, y: 540 }, // Vega — extremo direito (filho de Orion) [280px de Argus: 760+360=ok]
-  qa:        { x: 560, y: 740 }, // Lyra — centro baixo (QA valida tudo)
+  moniz:     { x: 600, y:    0 }, // Moniz — topo centro
+  main:      { x: 600, y:  220 }, // Atlas — centro
+  pm:        { x: 370, y:  440 }, // Iris — esquerda
+  architect: { x: 830, y:  440 }, // Orion — direita
+  frontend:  { x: 260, y:  660 }, // Pixel — esquerda
+  backend:   { x: 700, y:  660 }, // Forge — direita
+  reviewer:  { x: 600, y:  880 }, // Argus — centro
+  qa:        { x: 600, y: 1100 }, // Lyra — centro
+  devops:    { x: 600, y: 1320 }, // Vega — centro
 };
 
 function getPosition(id: string, index: number): { x: number; y: number } {
@@ -187,7 +184,7 @@ function AgentNode({ data }: NodeProps) {
       }}
       className={borderStyle}
     >
-      {/* Handles — top (target) and bottom (source) */}
+      {/* Handles — top (target), bottom (source), left/right (rejeição) */}
       <Handle
         type="target"
         position={Position.Top}
@@ -197,6 +194,18 @@ function AgentNode({ data }: NodeProps) {
         type="source"
         position={Position.Bottom}
         style={{ background: "#94a3b8", width: 8, height: 8, border: "2px solid #f8fafc" }}
+      />
+      <Handle
+        id="left"
+        type="source"
+        position={Position.Left}
+        style={{ background: "#ef4444", width: 7, height: 7, border: "2px solid #f8fafc" }}
+      />
+      <Handle
+        id="left"
+        type="target"
+        position={Position.Left}
+        style={{ background: "#ef4444", width: 7, height: 7, border: "2px solid #f8fafc" }}
       />
 
       {/* Header: emoji + name */}
@@ -585,7 +594,7 @@ export function FlowView() {
 
   useEffect(() => {
     fetchFlow();
-    const interval = setInterval(fetchFlow, 5000);
+    const interval = setInterval(fetchFlow, 2000);
     return () => clearInterval(interval);
   }, [fetchFlow]);
 
